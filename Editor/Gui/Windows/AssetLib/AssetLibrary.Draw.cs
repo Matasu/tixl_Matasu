@@ -1,4 +1,5 @@
 ﻿#nullable enable
+using System.IO;
 using System.Runtime.CompilerServices;
 using ImGuiNET;
 using T3.Core.DataTypes.Vector;
@@ -39,93 +40,17 @@ internal sealed partial class AssetLibrary
         // Tools and settings
         {
             ImGui.SameLine();
-            var toolItemState = _state.ActiveTypeFilters.Count >0
-                                        ? CustomComponents.ButtonStates.NeedsAttention
-                                        : CustomComponents.ButtonStates.Normal;
+            var toolItemState = _state.ActiveTypeFilters.Count > 0
+                                    ? CustomComponents.ButtonStates.NeedsAttention
+                                    : CustomComponents.ButtonStates.Normal;
 
-            var settingsPopUpID = "_AssetTools";
             if (CustomComponents.IconButton(Icon.Settings2, Vector2.Zero, toolItemState))
             {
-                ImGui.OpenPopup(settingsPopUpID);
+                ImGui.OpenPopup(SettingsPopUpId);
             }
 
-            
-            ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(10 * T3Ui.UiScaleFactor));
-            ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, new Vector2(10, 10) * T3Ui.UiScaleFactor);
-            if (ImGui.BeginPopupContextWindow(settingsPopUpID))
-            {
-                CustomComponents.SmallGroupHeader("2 selected...");
-                ImGui.MenuItem("Delete files", null, false, false);
-                CustomComponents.TooltipForLastItem("Not implemented yet :-(");
-
-                ImGui.MenuItem("Find References", null, false, false);
-                CustomComponents.TooltipForLastItem("Not implemented yet :-(");
-                
-                ImGui.MenuItem("Open Externally", null, false, false);
-                CustomComponents.TooltipForLastItem("Not implemented yet :-(");
-                
-                CustomComponents.SeparatorLine();
-                
-                CustomComponents.SmallGroupHeader("Options");
-
-                ImGui.MenuItem("Sync with Selection", null, ref UserSettings.Config.SyncWithOperatorSelection);
-                ImGui.MenuItem("Scroll to Active", null, ref UserSettings.Config.ScrollAssetLibToActive);
-                
-                CustomComponents.SeparatorLine();
-
-                //CustomComponents.SmallGroupHeader("Filter");
-
-                var showAllTypes = _state.ActiveTypeFilters.Count== 0;
-                if (DrawAssetFilterOption(10, Icon.Stack, UiColors.Text, "All", AssetTypeRegistry.TotalAssetCount, ref showAllTypes))
-                {
-                    _state.ActiveTypeFilters.Clear();
-                    _state.CompatibleExtensionIds.Clear();
-                    _state.FilteringNeedsUpdate = true;
-                }
-                
-                Input.FormInputs.AddVerticalSpace();
-                
-                for (var index = 0; index < AssetTypeRegistry.AssetTypes.Count; index++)
-                {
-                    var assetType = AssetTypeRegistry.AssetTypes[index];
-                    var count = assetType.MatchingFileCount;
-                    var xIcon = assetType.Icon;
-                    var readOnlySpan = assetType.Name;
-                    var iconColor = ColorVariations.OperatorLabel.Apply(assetType.Color);
-
-                    var isActive = _state.ActiveTypeFilters.Contains(assetType);
-                    if (DrawAssetFilterOption(index, xIcon, iconColor, readOnlySpan, count, ref isActive))
-                    {
-                        if (isActive)
-                        {
-                            if (!ImGui.GetIO().KeyCtrl && !ImGui.GetIO().KeyShift)
-                            {
-                                _state.ActiveTypeFilters.Clear();
-                                _state.CompatibleExtensionIds.Clear();
-                            }
-                            
-                            _state.ActiveTypeFilters.Add(assetType);
-                            foreach (var extId in assetType.ExtensionIds)
-                            {
-                                _state.CompatibleExtensionIds.Add(extId);
-                            }
-                        }
-                        else
-                        {
-                            _state.ActiveTypeFilters.Remove(assetType);
-                        }
-
-                        _state.FilteringNeedsUpdate = true;
-                    }
-                }
-
-                ImGui.End();
-            }
-
-            ImGui.PopStyleVar(2);
+            DrawAssetToolsPopup();
         }
-        
-        
 
         ImGui.BeginChild("scrolling", Vector2.Zero, false, ImGuiWindowFlags.NoBackground);
         {
@@ -136,59 +61,6 @@ internal sealed partial class AssetLibrary
             ImGui.PopStyleVar(3);
         }
         ImGui.EndChild();
-    }
-
-    private static bool DrawAssetFilterOption(int id, Icon xIcon, Color iconColor, string readOnlySpan, int count, ref bool isActive)
-    {
-        ImGui.PushID(id);
-        var clicked = ImGui.Selectable(string.Empty);
-        ImGui.PopID();
-
-        var fade = isActive ? 1 : 0.7f;
-        
-        var min = ImGui.GetItemRectMin();
-        var max = ImGui.GetItemRectMax();
-        var drawList = ImGui.GetWindowDrawList();
-        var h = ImGui.GetItemRectSize().Y;
-        
-        var paddingFactor = 1.2f;
-        var w = Icons.FontSize * paddingFactor;
-        
-        if (isActive)
-        {
-            Icons.DrawIconCenter(Icon.Checkmark, UiColors.Text.Fade(fade), 0);
-        }
-
-        Icons.DrawIconAtScreenPosition(xIcon,
-                                       (min + new Vector2(w * 1,
-                                                          h / 2 - Icons.FontSize / 2)).Floor(),
-                                       drawList, iconColor.Fade(fade));
-
-        var textHeight = ImGui.GetFontSize();
-        drawList.AddText(min + new Vector2(w * 2,
-                                           h / 2 - textHeight / 2), 
-                         UiColors.Text.Fade(fade), 
-                         readOnlySpan);
-
-        if (count > 0)
-        {
-            var countLabel = $"{count}";
-            var countLabelWidth = ImGui.CalcTextSize(countLabel).X;
-            var windowWidth = ImGui.GetColumnWidth();
-
-            drawList.AddText(min
-                             + new Vector2(windowWidth - countLabelWidth,
-                                           h / 2 - textHeight / 2),
-                             UiColors.TextMuted.Fade(fade), 
-                             countLabel);
-        }
-
-        if (clicked)
-        {
-            isActive = !isActive;
-        }
-
-        return clicked;
     }
 
     private bool _expandToFileTriggered;

@@ -356,6 +356,90 @@ internal static class CustomComponents
         ImGui.PopStyleVar(2);
     }
 
+    public static bool DrawMenuItem(int id, string label, ref bool isChecked, string keyboardShortCut = null)
+    {
+        var clicked = DrawMenuItem(id, label, keyboardShortCut, isChecked);
+        if (clicked)
+        {
+            isChecked = !isChecked;
+        }
+
+        return clicked;
+    }
+
+    public static bool DrawMenuItem(int id, string label, string keyboardShortCut = null, bool isChecked = false, bool isEnabled = true)
+    {
+        var h = ImGui.GetFrameHeight();
+        var imguiPadding = ImGui.GetStyle().ItemSpacing;
+
+        var shortCutWidth = string.IsNullOrEmpty(keyboardShortCut) ? 0 : ImGui.CalcTextSize(keyboardShortCut).X;
+        var labelWidth = ImGui.CalcTextSize(label).X;
+
+        var paddingFactor = 1.4f;
+        var leftPadding = imguiPadding.X + Icons.FontSize * paddingFactor;
+
+        var width = leftPadding + labelWidth + imguiPadding.X *2;
+        if (shortCutWidth > 0)
+        {
+            width += shortCutWidth + h;
+        }
+
+        
+        var windowWidth = ImGui.GetColumnWidth();
+        //var windowWidth = ImGui.GetWindowWidth();
+        
+        if(width < windowWidth)
+            width = windowWidth;
+        
+        ImGui.PushStyleVar(ImGuiStyleVar.ItemSpacing, Vector2.Zero);
+        ImGui.PushID(id);
+        //var clicked = ImGui.Selectable(string.Empty);
+        var clicked = ImGui.InvisibleButton(string.Empty, new Vector2(width, h)) && isEnabled;
+        ImGui.PopID();
+        ImGui.PopStyleVar();
+
+        var fade = isEnabled ? 1 : 0.5f;
+
+        var min = ImGui.GetItemRectMin();
+        var max = ImGui.GetItemRectMax();
+        var drawList = ImGui.GetWindowDrawList();
+
+        if (isEnabled && ImGui.IsItemHovered())
+        {
+            drawList.AddRectFilled(min,max, UiColors.BackgroundActive.Fade(0.25f), 4);
+        }
+        
+        if (isChecked)
+        {
+            //Icons.DrawIconCenter(Icon.Checkmark, UiColors.Text.Fade(fade), 0);
+            Icons.DrawIconAtScreenPosition(Icon.Checkmark,
+                                           (min + new Vector2(imguiPadding.X,
+                                                              h / 2 - Icons.FontSize / 2)).Floor(),
+                                           drawList, UiColors.Text);
+        }
+        
+        var textHeight = ImGui.GetFontSize();
+        drawList.AddText(min + new Vector2(leftPadding,
+                                           h / 2 - textHeight / 2),
+                         UiColors.Text.Fade(fade),
+                         label);
+
+        if (!string.IsNullOrEmpty(keyboardShortCut))
+        {
+            drawList.AddText(min
+                             + new Vector2(windowWidth - shortCutWidth,
+                                           h / 2 - textHeight / 2),
+                             UiColors.TextMuted.Fade(fade),
+                             keyboardShortCut);
+        }
+
+        if (clicked)
+        {
+            ImGui.CloseCurrentPopup();
+        }
+        return clicked;
+    }
+
     public static void DrawContextMenuForScrollCanvas(Action drawMenuContent, ref bool contextMenuIsOpen)
     {
         if (!contextMenuIsOpen)
@@ -457,12 +541,12 @@ internal static class CustomComponents
         FormInputs.AddVerticalSpace(4);
         ImGui.SetCursorPosX(0);
         var p = ImGui.GetCursorScreenPos();
-        
+
         //var p = ImGui.GetWindowContentRegionMin() + ImGui.GetWindowPos() + new Vector2(1,1);
         ImGui.GetWindowDrawList()
              .AddRectFilled(p,
                             p + new Vector2(ImGui.GetWindowSize().X, 1), UiColors.ForegroundFull.Fade(0.1f));
-        
+
         FormInputs.AddVerticalSpace(5);
     }
 
