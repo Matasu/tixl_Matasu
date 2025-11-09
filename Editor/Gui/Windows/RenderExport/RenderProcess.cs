@@ -1,5 +1,4 @@
-﻿// RenderProcess.cs
-#nullable enable
+﻿#nullable enable
 using System.IO;
 using T3.Core.Animation;
 using T3.Core.Audio;
@@ -7,45 +6,137 @@ using T3.Core.DataTypes;
 using T3.Core.DataTypes.Vector;
 using T3.Core.Utils;
 using T3.Editor.Gui.UiHelpers;
+using T3.Editor.Gui.Windows.Output;
 using T3.Editor.Gui.Windows.RenderExport.MF;
 
 namespace T3.Editor.Gui.Windows.RenderExport;
 
 internal static class RenderProcess
 {
+    public static string LastHelpString { get; private set; } = string.Empty;
+
+    public static double Progress => _frameCount <= 1 ? 0.0 : (_frameIndex / (double)(_frameCount - 1));
+    
+    public static Type? MainOutputType { get; private set; }
+    public static Int2 MainOutputSize;
+
+    public static States State;
+
+    // TODO: clarify the difference
     public static bool IsExporting { get; private set; }
-    public static string LastHelpString => _lastHelpString;
-    public static double Progress => FrameCount <= 1 ? 0.0 : (FrameIndex / (double)(FrameCount - 1));
-    public static int FrameIndex { get; private set; }
-    public static int FrameCount { get; private set; }
-
-    public static int GetRealFrame() => FrameIndex - MfVideoWriter.SkipImages;
-
-    public static void Start(string targetPath,
-                             Int2 size,
-                             RenderSettings.RenderMode mode,
-                             int bitrate,
-                             bool exportAudio,
-                             ScreenshotWriter.FileFormats fileFormat,
-                             RenderSettings.Settings timing,
-                             int frameCount)
+    public static bool IsToollRenderingSomething { get; private set; }
+    
+    public static double ExportStartedTimeLocal;
+    
+    public enum States
     {
-        _renderMode = mode;
-        _bitrate = bitrate;
-        _exportAudio = exportAudio;
-        _fileFormat = fileFormat;
-        _timing = timing;
-        FrameIndex = 0;
-        FrameCount = Math.Max(frameCount, 0);
+        NoOutputWindow,
+        NoValidOutputType,
+        NoValidOutputTexture,
+        WaitingForExport,
+        Exporting,
+    }
+
+    /// <remarks>
+    /// needs to be called once per frame
+    /// </remarks>
+    public static void Update()
+    {
+        var outputWindow = OutputWindow.GetPrimaryOutputWindow();
+        if (outputWindow == null)
+        {
+            State = States.NoOutputWindow;
+            return;
+        }
+
+        _mainTexture = outputWindow.GetCurrentTexture();
+        if (_mainTexture == null)
+        {
+            State = States.NoValidOutputTexture;
+            return;
+        }
+
+        MainOutputType = outputWindow.ShownInstance?.Outputs.FirstOrDefault()?.ValueType;
+        if (MainOutputType != typeof(Texture2D))
+        {
+            State = States.NoValidOutputType;
+            return;
+        }
+        
+        var desc = _mainTexture.Description;
+        MainOutputSize.Width = desc.Width;
+        MainOutputSize.Height = desc.Height;
+
+
+        if (!IsExporting)
+        {
+            State = States.WaitingForExport;
+            return;
+        }
+
+        State = States.Exporting;
+
+        // Process frame
+        bool success;
+        if (_renderSettings.RenderMode == RenderSettings.RenderModes.Video)
+        {
+            var audioFrame = AudioRendering.GetLastMixDownBuffer(1.0 / _renderSettings.Fps);
+            success = SaveVideoFrameAndAdvance( ref audioFrame, RenderAudioInfo.SoundtrackChannels(), RenderAudioInfo.SoundtrackSampleRate());
+        }
+        else
+        {
+            AudioRendering.GetLastMixDownBuffer(Playback.LastFrameDuration);
+            success = SaveImageFrameAndAdvance();
+        }
+
+        // Update stats
+        var effectiveFrameCount = _renderSettings.RenderMode == RenderSettings.RenderModes.Video ? _frameCount : _frameCount + 2;
+        var currentFrame = _renderSettings.RenderMode == RenderSettings.RenderModes.Video ? GetRealFrame() : _frameIndex + 1;
+
+        var completed = currentFrame >= effectiveFrameCount || !success;
+        if (!completed) 
+            return;
+
+        var duration = Playback.RunTimeInSecs - _exportStartedTime;
+        var successful = success ? "successfully" : "unsuccessfully";
+        LastHelpString = $"Render finished {successful} in {StringUtils.HumanReadableDurationFromSeconds(duration)}\n Ready to render.";
+
+        if (_renderSettings.AutoIncrementVersionNumber && success && _renderSettings.RenderMode == RenderSettings.RenderModes.Video)
+            RenderPaths.TryIncrementVideoFileNameInUserSettings();
+
+        Cleanup();
+        IsToollRenderingSomething = false;
+    }
+    
+    public static void TryStart(RenderSettings renderSettings)
+    {
+        if (IsExporting)
+        {
+            Log.Warning("Export is already in progress");
+            return;
+        }
+        
+        
+        var targetPath = GetTargetPath(renderSettings.RenderMode);
+        if (!RenderPaths.ValidateOrCreateTargetFolder(targetPath))
+            return;
+
+        IsToollRenderingSomething = true;
+        ExportStartedTimeLocal = Core.Animation.Playback.RunTimeInSecs;
+
+        _renderSettings = renderSettings;
+        
+        _frameIndex = 0;
+        _frameCount = Math.Max(_renderSettings.FrameCount, 0);
 
         _exportStartedTime = Playback.RunTimeInSecs;
 
-        if (mode == RenderSettings.RenderMode.Video)
+        if (_renderSettings.RenderMode == RenderSettings.RenderModes.Video)
         {
-            _videoWriter = new Mp4VideoWriter(targetPath, size, exportAudio)
+            _videoWriter = new Mp4VideoWriter(targetPath, MainOutputSize, _renderSettings.ExportAudio)
                                {
-                                   Bitrate = bitrate,
-                                   Framerate = (int)timing.Fps
+                                   Bitrate = _renderSettings.Bitrate,
+                                   Framerate = (int)renderSettings.Fps
                                };
         }
         else
@@ -56,56 +147,43 @@ internal static class RenderProcess
         ScreenshotWriter.ClearQueue();
 
         // set playback to the first frame
-        RenderTiming.SetPlaybackTimeForFrame(ref _timing, FrameIndex, FrameCount, ref _runtime);
+        RenderTiming.SetPlaybackTimeForFrame(ref _renderSettings, _frameIndex, _frameCount, ref _runtime);
         IsExporting = true;
-        _lastHelpString = "Rendering…";
+        LastHelpString = "Rendering…";
     }
 
-    public static bool ProcessFrame(ref Texture2D mainTexture, Int2 size)
+    private static int GetRealFrame() => _frameIndex - MfVideoWriter.SkipImages;
+    
+    
+    private static string GetTargetPath(RenderSettings.RenderModes renderMode)
     {
-        if (_renderMode == RenderSettings.RenderMode.Video)
-        {
-            var audioFrame = AudioRendering.GetLastMixDownBuffer(1.0 / _timing.Fps);
-            return SaveVideoFrameAndAdvance(ref mainTexture, ref audioFrame, RenderAudioInfo.SoundtrackChannels(), RenderAudioInfo.SoundtrackSampleRate());
-        }
-
-        AudioRendering.GetLastMixDownBuffer(Playback.LastFrameDuration);
-        return SaveImageFrameAndAdvance(mainTexture);
+        return renderMode == RenderSettings.RenderModes.Video
+                   ? RenderPaths.ResolveProjectRelativePath(UserSettings.Config.RenderVideoFilePath)
+                   : RenderPaths.ResolveProjectRelativePath(UserSettings.Config.RenderSequenceFilePath);
     }
 
     public static void Cancel(string? reason = null)
     {
         var duration = Playback.RunTimeInSecs - _exportStartedTime;
-        _lastHelpString = reason ?? $"Render cancelled after {StringUtils.HumanReadableDurationFromSeconds(duration)}";
+        LastHelpString = reason ?? $"Render cancelled after {StringUtils.HumanReadableDurationFromSeconds(duration)}";
         Cleanup();
-    }
-
-    public static void Finish(bool success, bool autoIncrementVideoFile)
-    {
-        var duration = Playback.RunTimeInSecs - _exportStartedTime;
-        var successful = success ? "successfully" : "unsuccessfully";
-        _lastHelpString = $"Render finished {successful} in {StringUtils.HumanReadableDurationFromSeconds(duration)}\n Ready to render.";
-
-        if (success && _renderMode == RenderSettings.RenderMode.Video && autoIncrementVideoFile)
-            RenderPaths.TryIncrementVideoFileNameInUserSettings();
-
-        Cleanup();
+        IsToollRenderingSomething = false;
     }
 
     private static void Cleanup()
     {
         IsExporting = false;
 
-        if (_renderMode == RenderSettings.RenderMode.Video)
+        if (_renderSettings.RenderMode == RenderSettings.RenderModes.Video)
         {
             _videoWriter?.Dispose();
             _videoWriter = null;
         }
 
-        RenderTiming.ReleasePlaybackTime(ref _timing, ref _runtime);
+        RenderTiming.ReleasePlaybackTime(ref _renderSettings, ref _runtime);
     }
 
-    private static bool SaveVideoFrameAndAdvance(ref Texture2D mainTexture, ref byte[] audioFrame, int channels, int sampleRate)
+    private static bool SaveVideoFrameAndAdvance( ref byte[] audioFrame, int channels, int sampleRate)
     {
         if (Playback.OpNotReady)
         {
@@ -115,14 +193,14 @@ internal static class RenderProcess
 
         try
         {
-            _videoWriter?.ProcessFrames(ref mainTexture, ref audioFrame, channels, sampleRate);
-            FrameIndex++;
-            RenderTiming.SetPlaybackTimeForFrame(ref _timing, FrameIndex, FrameCount, ref _runtime);
+            _videoWriter?.ProcessFrames( _mainTexture, ref audioFrame, channels, sampleRate);
+            _frameIndex++;
+            RenderTiming.SetPlaybackTimeForFrame(ref _renderSettings, _frameIndex, _frameCount, ref _runtime);
             return true;
         }
         catch (Exception e)
         {
-            _lastHelpString = e.ToString();
+            LastHelpString = e.ToString();
             Cleanup();
             return false;
         }
@@ -131,36 +209,39 @@ internal static class RenderProcess
     private static string GetSequenceFilePath()
     {
         var prefix = RenderPaths.SanitizeFilename(UserSettings.Config.RenderSequenceFileName);
-        return Path.Combine(_targetFolder, $"{prefix}_{FrameIndex:0000}.{_fileFormat.ToString().ToLower()}");
+        return Path.Combine(_targetFolder, $"{prefix}_{_frameIndex:0000}.{_renderSettings.FileFormat.ToString().ToLower()}");
     }
 
-    private static bool SaveImageFrameAndAdvance(Texture2D mainTexture)
+    private static bool SaveImageFrameAndAdvance()
     {
+        if (_mainTexture == null)
+            return false;
+        
         try
         {
-            var success = ScreenshotWriter.StartSavingToFile(mainTexture, GetSequenceFilePath(), _fileFormat);
-            FrameIndex++;
-            RenderTiming.SetPlaybackTimeForFrame(ref _timing, FrameIndex, FrameCount, ref _runtime);
+            var success = ScreenshotWriter.StartSavingToFile(_mainTexture, GetSequenceFilePath(), _renderSettings.FileFormat);
+            _frameIndex++;
+            RenderTiming.SetPlaybackTimeForFrame(ref _renderSettings, _frameIndex, _frameCount, ref _runtime);
             return success;
         }
         catch (Exception e)
         {
-            _lastHelpString = e.ToString();
+            LastHelpString = e.ToString();
             IsExporting = false;
             return false;
         }
     }
 
     // State
-    private static RenderSettings.RenderMode _renderMode;
-    private static int _bitrate = 25_000_000;
-    private static bool _exportAudio = true;
-    private static ScreenshotWriter.FileFormats _fileFormat;
     private static Mp4VideoWriter? _videoWriter;
     private static string _targetFolder = string.Empty;
     private static double _exportStartedTime;
-    private static string _lastHelpString = string.Empty;
+    private static int _frameIndex;
+    private static int _frameCount;
+    private static Texture2D? _mainTexture;
 
-    private static RenderSettings.Settings _timing;
+    private static RenderSettings _renderSettings = null!;
     private static RenderTiming.Runtime _runtime;
+    
+
 }

@@ -1,5 +1,4 @@
-﻿// RenderPaths.cs
-#nullable enable
+﻿#nullable enable
 using System.IO;
 using System.Text.RegularExpressions;
 using T3.Core.SystemUi;

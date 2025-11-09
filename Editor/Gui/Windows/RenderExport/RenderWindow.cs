@@ -1,12 +1,9 @@
-// RenderWindow.cs (updated to use the extracted classes)
 #nullable enable
 using ImGuiNET;
-using T3.Core.DataTypes;
 using T3.Core.DataTypes.Vector;
 using T3.Editor.Gui.Input;
 using T3.Editor.Gui.Styling;
 using T3.Editor.Gui.UiHelpers;
-using T3.Editor.Gui.Windows.Output;
 using T3.Core.Utils;
 
 namespace T3.Editor.Gui.Windows.RenderExport;
@@ -18,7 +15,6 @@ internal sealed class RenderWindow : Window
         Config.Title = "Render To File";
     }
 
-    // UI + orchestration
     protected override void DrawContent()
     {
         FormInputs.AddVerticalSpace(15);
@@ -29,19 +25,16 @@ internal sealed class RenderWindow : Window
 
     private void DrawInnerContent()
     {
-        var outputWindow = OutputWindow.GetPrimaryOutputWindow();
-        if (outputWindow == null)
+        if (RenderProcess.State == RenderProcess.States.NoOutputWindow)
         {
             _lastHelpString = "No output view available";
             CustomComponents.HelpText(_lastHelpString);
             return;
         }
 
-        var mainTexture = outputWindow.GetCurrentTexture();
-        var outputType = outputWindow.ShownInstance?.Outputs.FirstOrDefault()?.ValueType;
-        if (outputType != typeof(Texture2D))
+        if (RenderProcess.State == RenderProcess.States.NoValidOutputType)
         {
-            _lastHelpString = outputType == null
+            _lastHelpString = RenderProcess.MainOutputType == null
                                   ? "The output view is empty"
                                   : "Select or pin a Symbol with Texture2D output in order to render to file";
             FormInputs.AddVerticalSpace(5);
@@ -58,20 +51,12 @@ internal sealed class RenderWindow : Window
         _lastHelpString = "Ready to render.";
 
         FormInputs.AddVerticalSpace();
-        FormInputs.AddSegmentedButtonWithLabel(ref _renderMode, "Render Mode");
-
-        Int2 size = default;
-        if (mainTexture != null)
-        {
-            var desc = mainTexture.Description;
-            size.Width = desc.Width;
-            size.Height = desc.Height;
-        }
+        FormInputs.AddSegmentedButtonWithLabel(ref RenderSettings.RenderMode, "Render Mode");
 
         FormInputs.AddVerticalSpace();
 
-        if (_renderMode == RenderSettings.RenderMode.Video)
-            DrawVideoSettings(size);
+        if (RenderSettings.RenderMode == RenderSettings.RenderModes.Video)
+            DrawVideoSettings(RenderProcess.MainOutputSize);
         else
             DrawImageSequenceSettings();
 
@@ -79,75 +64,74 @@ internal sealed class RenderWindow : Window
         ImGui.Separator();
         FormInputs.AddVerticalSpace(5);
 
-        DrawRenderingControls(ref mainTexture!, size);
+        DrawRenderingControls();
 
         CustomComponents.HelpText(RenderProcess.IsExporting ? RenderProcess.LastHelpString : _lastHelpString);
     }
 
-    // Time setup UI drives RenderTiming.Settings
-    private void DrawTimeSetup()
+    private static void DrawTimeSetup()
     {
         FormInputs.SetIndentToParameters();
 
         // Range
-        FormInputs.AddSegmentedButtonWithLabel(ref _timeRange, "Render Range");
-        RenderTiming.ApplyTimeRange(_timeRange, ref _timing);
+        FormInputs.AddSegmentedButtonWithLabel(ref RenderSettings.TimeRange, "Render Range");
+        RenderTiming.ApplyTimeRange(RenderSettings.TimeRange, RenderSettings);
 
         FormInputs.AddVerticalSpace();
 
         // Reference switch converts values
-        var oldRef = _timing.Reference;
-        if (FormInputs.AddSegmentedButtonWithLabel(ref _timing.Reference, "Defined as"))
+        var oldRef = RenderSettings.Reference;
+        if (FormInputs.AddSegmentedButtonWithLabel(ref RenderSettings.Reference, "Defined as"))
         {
-            _timing.StartInBars = (float)RenderTiming.ConvertReferenceTime(_timing.StartInBars, oldRef, _timing.Reference, _timing.Fps);
-            _timing.EndInBars   = (float)RenderTiming.ConvertReferenceTime(_timing.EndInBars,   oldRef, _timing.Reference, _timing.Fps);
+            RenderSettings.StartInBars =
+                (float)RenderTiming.ConvertReferenceTime(RenderSettings.StartInBars, oldRef, RenderSettings.Reference, RenderSettings.Fps);
+            RenderSettings.EndInBars = (float)RenderTiming.ConvertReferenceTime(RenderSettings.EndInBars, oldRef, RenderSettings.Reference, RenderSettings.Fps);
         }
 
         var changed = false;
-        changed |= FormInputs.AddFloat($"Start in {_timing.Reference}", ref _timing.StartInBars);
-        changed |= FormInputs.AddFloat($"End in {_timing.Reference}",   ref _timing.EndInBars);
+        changed |= FormInputs.AddFloat($"Start in {RenderSettings.Reference}", ref RenderSettings.StartInBars);
+        changed |= FormInputs.AddFloat($"End in {RenderSettings.Reference}", ref RenderSettings.EndInBars);
         if (changed)
-            _timeRange = RenderSettings.TimeRanges.Custom;
+            RenderSettings.TimeRange = RenderSettings.TimeRanges.Custom;
 
         FormInputs.AddVerticalSpace();
 
         // FPS (also rescales frame-based numbers)
-        FormInputs.AddFloat("FPS", ref _timing.Fps, 0);
-        if (_timing.Fps < 0) _timing.Fps = -_timing.Fps;
-        if (_timing.Fps != 0 && Math.Abs(_lastValidFps - _timing.Fps) > float.Epsilon)
+        FormInputs.AddFloat("FPS", ref RenderSettings.Fps, 0);
+        if (RenderSettings.Fps < 0) RenderSettings.Fps = -RenderSettings.Fps;
+        if (RenderSettings.Fps != 0 && Math.Abs(_lastValidFps - RenderSettings.Fps) > float.Epsilon)
         {
-            _timing.StartInBars = (float)RenderTiming.ConvertFps(_timing.StartInBars, _lastValidFps, _timing.Fps);
-            _timing.EndInBars   = (float)RenderTiming.ConvertFps(_timing.EndInBars,   _lastValidFps, _timing.Fps);
-            _lastValidFps = _timing.Fps;
+            RenderSettings.StartInBars = (float)RenderTiming.ConvertFps(RenderSettings.StartInBars, _lastValidFps, RenderSettings.Fps);
+            RenderSettings.EndInBars = (float)RenderTiming.ConvertFps(RenderSettings.EndInBars, _lastValidFps, RenderSettings.Fps);
+            _lastValidFps = RenderSettings.Fps;
         }
 
-        _frameCount = RenderTiming.CountFrames(_timing);
+        RenderSettings.FrameCount = RenderTiming.ComputeFrameCount(RenderSettings);
 
-        FormInputs.AddFloat("Resolution Factor", ref _resolutionFactor, 0.125f, 4, 0.1f, true, true,
+        FormInputs.AddFloat("Resolution Factor", ref RenderSettings.ResolutionFactor, 0.125f, 4, 0.1f, true, true,
                             "A factor applied to the output resolution of the rendered frames.");
 
-        if (FormInputs.AddInt("Motion Blur Samples", ref _timing.OverrideMotionBlurSamples, -1, 50, 1,
+        if (FormInputs.AddInt("Motion Blur Samples", ref RenderSettings.OverrideMotionBlurSamples, -1, 50, 1,
                               "This requires a [RenderWithMotionBlur] operator. Please check its documentation."))
         {
-            _timing.OverrideMotionBlurSamples = Math.Clamp(_timing.OverrideMotionBlurSamples, -1, 50);
+            RenderSettings.OverrideMotionBlurSamples = Math.Clamp(RenderSettings.OverrideMotionBlurSamples, -1, 50);
         }
     }
 
-    // Video options
     private void DrawVideoSettings(Int2 size)
     {
-        FormInputs.AddInt("Bitrate", ref _bitrate, 0, 500000000, 1000);
+        FormInputs.AddInt("Bitrate", ref RenderSettings.Bitrate, 0, 500000000, 1000);
 
-        var startSec = RenderTiming.ReferenceTimeToSeconds(_timing.StartInBars, _timing.Reference, _timing.Fps);
-        var endSec   = RenderTiming.ReferenceTimeToSeconds(_timing.EndInBars,   _timing.Reference, _timing.Fps);
+        var startSec = RenderTiming.ReferenceTimeToSeconds(RenderSettings.StartInBars, RenderSettings.Reference, RenderSettings.Fps);
+        var endSec = RenderTiming.ReferenceTimeToSeconds(RenderSettings.EndInBars, RenderSettings.Reference, RenderSettings.Fps);
         var duration = Math.Max(0, endSec - startSec);
 
-        double bpp = size.Width <= 0 || size.Height <= 0 || _timing.Fps <= 0
+        double bpp = size.Width <= 0 || size.Height <= 0 || RenderSettings.Fps <= 0
                          ? 0
-                         : _bitrate / (double)(size.Width * size.Height) / _timing.Fps;
+                         : RenderSettings.Bitrate / (double)(size.Width * size.Height) / RenderSettings.Fps;
 
         var q = GetQualityLevelFromRate((float)bpp);
-        FormInputs.AddHint($"{q.Title} quality ({_bitrate * duration / 1024 / 1024 / 8:0} MB for {duration / 60:0}:{duration % 60:00}s at {size.Width}×{size.Height})");
+        FormInputs.AddHint($"{q.Title} quality ({RenderSettings.Bitrate * duration / 1024 / 1024 / 8:0} MB for {duration / 60:0}:{duration % 60:00}s at {size.Width}×{size.Height})");
         CustomComponents.TooltipForLastItem(q.Description);
 
         FormInputs.AddFilePicker("File name",
@@ -159,18 +143,18 @@ internal sealed class RenderWindow : Window
 
         if (RenderPaths.IsFilenameIncrementable())
         {
-            ImGui.PushStyleVar(ImGuiStyleVar.Alpha, _autoIncrementVersionNumber ? 0.7f : 0.3f);
-            FormInputs.AddCheckBox("Increment version after export", ref _autoIncrementVersionNumber);
+            ImGui.PushStyleVar(ImGuiStyleVar.Alpha, RenderSettings.AutoIncrementVersionNumber ? 0.7f : 0.3f);
+            FormInputs.AddCheckBox("Increment version after export", ref RenderSettings.AutoIncrementVersionNumber);
             ImGui.PopStyleVar();
         }
 
-        FormInputs.AddCheckBox("Export Audio (experimental)", ref _exportAudio);
+        FormInputs.AddCheckBox("Export Audio (experimental)", ref RenderSettings.ExportAudio);
     }
 
     // Image sequence options
     private static void DrawImageSequenceSettings()
     {
-        FormInputs.AddEnumDropdown(ref _fileFormat, "File Format");
+        FormInputs.AddEnumDropdown(ref RenderSettings.FileFormat, "File Format");
 
         if (FormInputs.AddStringInput("File name", ref UserSettings.Config.RenderSequenceFileName))
         {
@@ -194,68 +178,25 @@ internal sealed class RenderWindow : Window
                                  FileOperations.FilePickerTypes.Folder);
     }
 
-    private void DrawRenderingControls(ref Texture2D mainTexture, Int2 size)
+    private static void DrawRenderingControls()
     {
-        if (!RenderProcess.IsExporting && !IsToollRenderingSomething)
+        if (!RenderProcess.IsExporting && !RenderProcess.IsToollRenderingSomething)
         {
             if (ImGui.Button("Start Render"))
             {
-                var targetPath = GetTargetPath();
-                if (RenderPaths.ValidateOrCreateTargetFolder(targetPath))
-                {
-                    SetRenderingStarted();
-                    RenderProcess.Start(targetPath,
-                                        size,
-                                        _renderMode,
-                                        _bitrate,
-                                        _exportAudio,
-                                        _fileFormat,
-                                        _timing,
-                                        _frameCount);
-                }
+                RenderProcess.TryStart(RenderSettings);
             }
         }
         else if (RenderProcess.IsExporting)
         {
-            bool success = RenderProcess.ProcessFrame(ref mainTexture, size);
-
             ImGui.ProgressBar((float)RenderProcess.Progress, new Vector2(-1, 16 * T3Ui.UiScaleFactor));
 
-            var effectiveFrameCount = _renderMode == RenderSettings.RenderMode.Video ? RenderProcess.FrameCount : RenderProcess.FrameCount + 2;
-            var currentFrame = _renderMode == RenderSettings.RenderMode.Video ? RenderProcess.GetRealFrame() : RenderProcess.FrameIndex + 1;
-
-            var completed = currentFrame >= effectiveFrameCount || !success;
-            if (completed)
+            if (ImGui.Button("Cancel"))
             {
-                RenderProcess.Finish(success, _autoIncrementVersionNumber && _renderMode == RenderSettings.RenderMode.Video);
-                RenderingFinished();
-            }
-            else if (ImGui.Button("Cancel"))
-            {
-                var elapsed = T3.Core.Animation.Playback.RunTimeInSecs - _exportStartedTimeLocal;
+                var elapsed = T3.Core.Animation.Playback.RunTimeInSecs - RenderProcess.ExportStartedTimeLocal;
                 RenderProcess.Cancel($"Render cancelled after {StringUtils.HumanReadableDurationFromSeconds(elapsed)}");
-                RenderingFinished();
             }
         }
-    }
-
-    private string GetTargetPath()
-    {
-        return _renderMode == RenderSettings.RenderMode.Video
-                   ? RenderPaths.ResolveProjectRelativePath(UserSettings.Config.RenderVideoFilePath)
-                   : RenderPaths.ResolveProjectRelativePath(UserSettings.Config.RenderSequenceFilePath);
-    }
-
-    // Minimal “rendering started/finished” bookkeeping kept local to the UI
-    private static void SetRenderingStarted()
-    {
-        IsToollRenderingSomething = true;
-        _exportStartedTimeLocal = T3.Core.Animation.Playback.RunTimeInSecs;
-    }
-
-    private static void RenderingFinished()
-    {
-        IsToollRenderingSomething = false;
     }
 
     // Helpers
@@ -268,48 +209,24 @@ internal sealed class RenderWindow : Window
             if (q.MinBitsPerPixelSecond < bitsPerPixelSecond)
                 break;
         }
+
         return q;
     }
 
-    internal override List<Window> GetInstances() => new();
+    internal override List<Window> GetInstances() => [];
 
-    // State (UI)
-    public static bool IsToollRenderingSomething { get; private set; }
-
-    private static RenderSettings.RenderMode _renderMode = RenderSettings.RenderMode.Video;
-    private static int _bitrate = 25_000_000;
-    private static bool _autoIncrementVersionNumber = true;
-    private static bool _exportAudio = true;
-    private static ScreenshotWriter.FileFormats _fileFormat;
     private static string _lastHelpString = string.Empty;
-
-    // Time state for UI + process
-    private static RenderSettings.Settings _timing = new()
-                                                       {
-                                                           Reference = RenderSettings.TimeReference.Bars,
-                                                           StartInBars = 0f,
-                                                           EndInBars = 4f,
-                                                           Fps = 60f,
-                                                           OverrideMotionBlurSamples = -1,
-                                                       };
-
-    private static RenderSettings.TimeRanges _timeRange = RenderSettings.TimeRanges.Custom;
-    private static float _resolutionFactor = 1f;     // currently UI-only hint
-    private static float _lastValidFps = _timing.Fps;
-
-    private static int _frameCount;
-
-    // local UI runtime info
-    private static double _exportStartedTimeLocal;
+    private static float _lastValidFps = RenderSettings.Fps;
+    private static RenderSettings RenderSettings => RenderSettings.Current;
 
     private readonly RenderSettings.QualityLevel[] _qualityLevels =
         {
-            new (0.01, "Poor", "Very low quality. Consider lower resolution."),
-            new (0.02, "Low", "Probable strong artifacts"),
-            new (0.05, "Medium", "Will exhibit artifacts in noisy regions"),
-            new (0.08, "Okay", "Compromise between filesize and quality"),
-            new (0.12, "Good", "Good quality. Probably sufficient for YouTube."),
-            new (0.5, "Very good", "Excellent quality, but large."),
-            new (1, "Reference", "Indistinguishable. Very large files."),
+            new(0.01, "Poor", "Very low quality. Consider lower resolution."),
+            new(0.02, "Low", "Probable strong artifacts"),
+            new(0.05, "Medium", "Will exhibit artifacts in noisy regions"),
+            new(0.08, "Okay", "Compromise between filesize and quality"),
+            new(0.12, "Good", "Good quality. Probably sufficient for YouTube."),
+            new(0.5, "Very good", "Excellent quality, but large."),
+            new(1, "Reference", "Indistinguishable. Very large files."),
         };
 }

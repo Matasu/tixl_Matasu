@@ -54,7 +54,7 @@ internal abstract class MfVideoWriter : IDisposable
     /// <summary>
     /// Returns true if a frame has been written
     /// </summary>
-    public bool ProcessFrames(ref Texture2D gpuTexture, ref byte[] audioFrame, int channels, int sampleRate)
+    public bool ProcessFrames( Texture2D gpuTexture, ref byte[] audioFrame, int channels, int sampleRate)
     {
         try
         {

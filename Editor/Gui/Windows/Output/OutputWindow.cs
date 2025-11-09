@@ -367,14 +367,14 @@ internal sealed class OutputWindow : Window
 
         const string overrideSampleVariableName = "OverrideMotionBlurSamples";
         
-        if (RenderWindow.IsToollRenderingSomething)
+        if (RenderProcess.IsToollRenderingSomething)
         {
             // FIXME: Implement
-            // var samples = RenderWindow.OverrideMotionBlurSamples;
-            // if (samples >= 0)
-            // {
-            //     _evaluationContext.IntVariables[overrideSampleVariableName] = samples;
-            // }
+            var samples = RenderSettings.Current.OverrideMotionBlurSamples;
+            if (samples >= 0)
+            {
+                _evaluationContext.IntVariables[overrideSampleVariableName] = samples;
+            }
         }
         else
         {

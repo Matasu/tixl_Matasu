@@ -1,5 +1,4 @@
-﻿// RenderTiming.cs
-#nullable enable
+﻿#nullable enable
 using T3.Core.Animation;
 using T3.Core.Audio;
 using T3.Core.Utils;
@@ -15,7 +14,7 @@ internal static class RenderTiming
         public bool AudioRecording;
     }
 
-    public static void ApplyTimeRange(RenderSettings.TimeRanges range, ref RenderSettings.Settings s)
+    public static void ApplyTimeRange(RenderSettings.TimeRanges range, RenderSettings renderSettings)
     {
         switch (range)
         {
@@ -27,8 +26,8 @@ internal static class RenderTiming
                 var playback = Playback.Current;
                 var startInSeconds = playback.SecondsFromBars(playback.LoopRange.Start);
                 var endInSeconds = playback.SecondsFromBars(playback.LoopRange.End);
-                s.StartInBars = (float)SecondsToReferenceTime(startInSeconds, s.Reference, s.Fps);
-                s.EndInBars = (float)SecondsToReferenceTime(endInSeconds, s.Reference, s.Fps);
+                renderSettings.StartInBars = (float)SecondsToReferenceTime(startInSeconds, renderSettings.Reference, renderSettings.Fps);
+                renderSettings.EndInBars = (float)SecondsToReferenceTime(endInSeconds, renderSettings.Reference, renderSettings.Fps);
                 break;
             }
 
@@ -38,11 +37,11 @@ internal static class RenderTiming
                 {
                     var playback = Playback.Current;
                     var clip = handle.Clip;
-                    s.StartInBars = (float)SecondsToReferenceTime(playback.SecondsFromBars(clip.StartTime), s.Reference, s.Fps);
+                    renderSettings.StartInBars = (float)SecondsToReferenceTime(playback.SecondsFromBars(clip.StartTime), renderSettings.Reference, renderSettings.Fps);
                     if (clip.EndTime > 0)
-                        s.EndInBars = (float)SecondsToReferenceTime(playback.SecondsFromBars(clip.EndTime), s.Reference, s.Fps);
+                        renderSettings.EndInBars = (float)SecondsToReferenceTime(playback.SecondsFromBars(clip.EndTime), renderSettings.Reference, renderSettings.Fps);
                     else
-                        s.EndInBars = (float)SecondsToReferenceTime(clip.LengthInSeconds, s.Reference, s.Fps);
+                        renderSettings.EndInBars = (float)SecondsToReferenceTime(clip.LengthInSeconds, renderSettings.Reference, renderSettings.Fps);
                 }
                 break;
             }
@@ -99,14 +98,14 @@ internal static class RenderTiming
         }
     }
 
-    public static int CountFrames(in RenderSettings.Settings s)
+    public static int ComputeFrameCount(in RenderSettings s)
     {
         var start = ReferenceTimeToSeconds(s.StartInBars, s.Reference, s.Fps);
         var end = ReferenceTimeToSeconds(s.EndInBars, s.Reference, s.Fps);
         return (int)Math.Round((end - start) * s.Fps);
     }
 
-    public static void SetPlaybackTimeForFrame(ref RenderSettings.Settings s, int frameIndex, int frameCount, ref Runtime rt)
+    public static void SetPlaybackTimeForFrame(ref RenderSettings s, int frameIndex, int frameCount, ref Runtime rt)
     {
         // get playback settings
         var composition = T3.Editor.UiModel.ProjectHandling.ProjectView.Focused?.CompositionInstance;
@@ -148,7 +147,7 @@ internal static class RenderTiming
             AudioRendering.PrepareRecording(Playback.Current, s.Fps);
 
             var requestedEndSecs = ReferenceTimeToSeconds(s.EndInBars, s.Reference, s.Fps);
-            var actualEndSecs = startSecs + CountFrames(s) / s.Fps;
+            var actualEndSecs = startSecs + ComputeFrameCount(s) / s.Fps;
 
             Log.Debug($"Requested recording from {startSecs:0.0000} to {requestedEndSecs:0.0000} seconds");
             Log.Debug($"Actually recording from {startSecs:0.0000} to {actualEndSecs:0.0000} seconds due to frame raster");
@@ -167,7 +166,7 @@ internal static class RenderTiming
         AudioEngine.CompleteFrame(Playback.Current, bufferLengthMs / 1000.0);
     }
 
-    public static void ReleasePlaybackTime(ref RenderSettings.Settings s, ref Runtime rt)
+    public static void ReleasePlaybackTime(ref RenderSettings s, ref Runtime rt)
     {
         AudioRendering.EndRecording(Playback.Current, s.Fps);
 

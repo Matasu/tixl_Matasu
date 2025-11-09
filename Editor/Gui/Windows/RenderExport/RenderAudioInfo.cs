@@ -1,5 +1,4 @@
-﻿// RenderAudioInfo.cs
-#nullable enable
+﻿#nullable enable
 using T3.Core.Audio;
 using T3.Editor.Gui.Interaction.Timing;
 using T3.Editor.UiModel.ProjectHandling;

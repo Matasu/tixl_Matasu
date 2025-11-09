@@ -1,18 +1,36 @@
 ﻿#nullable enable
 namespace T3.Editor.Gui.Windows.RenderExport;
 
-internal static class RenderSettings
+internal sealed class RenderSettings
 {
-    public struct Settings
-    {
-        public TimeReference Reference;
-        public float StartInBars;
-        public float EndInBars;
-        public float Fps;
-        public int OverrideMotionBlurSamples;   // forwarded for operators that might read it
-    }
     
-    internal enum RenderMode
+    public static readonly RenderSettings Current = new()
+                                                        {
+                                                            Reference = RenderSettings.TimeReference.Bars,
+                                                            StartInBars = 0f,
+                                                            EndInBars = 4f,
+                                                            Fps = 60f,
+                                                            OverrideMotionBlurSamples = -1,
+                                                        };
+    
+    public TimeReference Reference;
+    public float StartInBars;
+    public float EndInBars;
+    public float Fps;
+    public int OverrideMotionBlurSamples;   // forwarded for operators that might read it
+
+    
+    public  RenderSettings.RenderModes RenderMode = RenderSettings.RenderModes.Video;
+    public  int Bitrate = 25_000_000;
+    public  bool AutoIncrementVersionNumber = true;
+    public  bool ExportAudio = true;
+    public  ScreenshotWriter.FileFormats FileFormat;
+    public  RenderSettings.TimeRanges TimeRange = RenderSettings.TimeRanges.Custom;
+    public  float ResolutionFactor = 1f;     // currently UI-only hint
+
+    public int FrameCount;
+    
+    internal enum RenderModes
     {
         Video,
         ImageSequence
