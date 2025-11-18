@@ -14,6 +14,10 @@ using MagItemMovement = T3.Editor.Gui.MagGraph.Interaction.MagItemMovement;
 
 namespace T3.Editor.Gui.MagGraph.States;
 
+public abstract class InteractionContext
+{
+    
+}
 
 /// <summary>
 /// Holds the current interaction state of the graph. It is passed as a parameter
@@ -62,7 +66,7 @@ namespace T3.Editor.Gui.MagGraph.States;
 ///
 /// 
 ///</remarks>
-internal sealed class GraphUiContext
+internal sealed class GraphUiContext: InteractionContext
 {
     internal GraphUiContext(ProjectView projectView,  MagGraphView view)
     {

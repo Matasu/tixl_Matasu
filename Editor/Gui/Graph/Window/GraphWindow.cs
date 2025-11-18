@@ -150,7 +150,7 @@ internal sealed class GraphWindow : Windows.Window
     {
         if (ProjectView == null)
         {
-            ProjectHub.DrawProjectList(this);
+            ProjectHub.Draw(this);
             return;
         }
 

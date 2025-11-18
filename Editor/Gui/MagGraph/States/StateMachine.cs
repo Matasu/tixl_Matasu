@@ -3,9 +3,9 @@ using ImGuiNET;
 
 namespace T3.Editor.Gui.MagGraph.States;
 
-internal record struct State(Action<GraphUiContext> Enter, 
-                             Action<GraphUiContext> Update, 
-                             Action<GraphUiContext> Exit);
+internal record struct State(Action<GraphUiContext> Enter=null, 
+                             Action<GraphUiContext> Update=null, 
+                             Action<GraphUiContext> Exit=null);
 
 
 /// <summary>

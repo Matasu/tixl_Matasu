@@ -36,10 +36,11 @@
 
 - [x] Design for HUB, title, etc.
 - [ ] Serialize user progress
-- [ ] Model for a level progression map (JSON?
-- [ ] model for user progress
+- [ ] Model for a level progression map (JSON?)
+- [x] model for user progress
 - [ ] HUB Area
-  - [ ] Show nest Topic/Level with action
+  - [ ] Show next Topic/Level with action
+    - [ ] Infer next level from active Topic and User results (e.g. completed, skipped etc.)
   - [ ] Fake button for complete
   - [ ] Serialize button (fake)
   - [ ] Toolbar with reset
