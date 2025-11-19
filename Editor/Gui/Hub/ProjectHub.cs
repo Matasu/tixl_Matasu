@@ -1,5 +1,5 @@
 ﻿using ImGuiNET;
-using T3.Editor.Gui.Graph.Window;
+using T3.Editor.Gui.Window;
 
 namespace T3.Editor.Gui.Hub;
 

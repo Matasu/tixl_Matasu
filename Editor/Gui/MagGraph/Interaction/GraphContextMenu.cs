@@ -14,6 +14,7 @@ using T3.Editor.UiModel.Exporting;
 using T3.Editor.UiModel.InputsAndTypes;
 using T3.Editor.UiModel.Modification;
 using T3.Editor.UiModel.ProjectHandling;
+using MagGraphView = T3.Editor.Gui.MagGraph.Ui.MagGraphView;
 
 namespace T3.Editor.Gui.MagGraph.Interaction;
 

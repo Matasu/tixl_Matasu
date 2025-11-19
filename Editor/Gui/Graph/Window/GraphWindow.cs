@@ -1,8 +1,7 @@
 ﻿#nullable enable
 using ImGuiNET;
 using T3.Core.Animation;
-using T3.Editor.Gui.Graph.Dialogs;
-using T3.Editor.Gui.Graph.Interaction;
+using T3.Editor.Gui.Dialogs;
 using T3.Editor.Gui.Hub;
 using T3.Editor.Gui.Interaction;
 using T3.Editor.Gui.Interaction.TransformGizmos;
@@ -14,9 +13,10 @@ using T3.Editor.Gui.Windows.Layouts;
 using T3.Editor.UiModel;
 using T3.Editor.UiModel.ProjectHandling;
 using T3.Editor.UiModel.Selection;
+using MagGraphView = T3.Editor.Gui.MagGraph.Ui.MagGraphView;
 using Vector2 = System.Numerics.Vector2;
 
-namespace T3.Editor.Gui.Graph.Window;
+namespace T3.Editor.Gui.Window;
 
 internal sealed class GraphWindow : Windows.Window
 {
@@ -56,14 +56,7 @@ internal sealed class GraphWindow : Windows.Window
 
     #region Handling project view ----------------------
     public ProjectView? ProjectView { get; private set; }
-
-    // [Obsolete("Please use TrySetToProject()")]
-    // public static bool TryOpenPackage(EditorSymbolPackage package, bool replaceFocused, Instance? startingComposition = null, WindowConfig? config = null,
-    //                                   int instanceNumber = 0)
-    // {
-    //     return false;
-    // }
-
+    
     /// <summary>
     /// Initialize <see cref="ProjectView"/> to for a loaded project 
     /// </summary>

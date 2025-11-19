@@ -1,6 +1,6 @@
 #nullable enable
 using ImGuiNET;
-using T3.Editor.Gui.Graph.Window;
+using T3.Editor.Gui.Window;
 using T3.Editor.Gui.Interaction;
 using T3.Editor.Gui.Interaction.Keyboard;
 using T3.Editor.Gui.UiHelpers;

@@ -5,7 +5,7 @@ using T3.Core.Resource;
 using T3.Core.Stats;
 using T3.Core.SystemUi;
 using T3.Core.Utils;
-using T3.Editor.Gui.Graph.Window;
+using T3.Editor.Gui.Window;
 using T3.Editor.Gui.Input;
 using T3.Editor.Gui.Interaction;
 using T3.Editor.Gui.Interaction.Keyboard;
@@ -377,7 +377,7 @@ internal static class AppMenuBar
             if (ImGui.MenuItem("Toggle All", UserActions.ToggleAllUiElements.ListShortcuts(), false,
                                !T3Ui.IsCurrentlySaving))
             {
-                T3Ui.ToggleAllUiElements();
+                UiState.ToggleAllUiElements();
             }
 
             ImGui.Separator();
@@ -389,7 +389,7 @@ internal static class AppMenuBar
 
             if (ImGui.MenuItem("Focus Mode", UserActions.ToggleFocusMode.ListShortcuts(), UserSettings.Config.FocusMode))
             {
-                T3Ui.ToggleFocusMode();
+                UiState.ToggleFocusMode();
             }
 
             ImGui.EndMenu();

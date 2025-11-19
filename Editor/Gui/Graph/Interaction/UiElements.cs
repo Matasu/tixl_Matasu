@@ -10,7 +10,7 @@ using T3.Editor.UiModel;
 using T3.Editor.UiModel.InputsAndTypes;
 using T3.Editor.UiModel.ProjectHandling;
 
-namespace T3.Editor.Gui.Graph.Interaction;
+namespace T3.Editor.Gui.Interaction;
 
 internal sealed class UiElements
 {

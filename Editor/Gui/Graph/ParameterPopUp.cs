@@ -15,7 +15,7 @@ using T3.Editor.UiModel.Commands;
 using T3.Editor.UiModel.Commands.Graph;
 using T3.Editor.UiModel.ProjectHandling;
 
-namespace T3.Editor.Gui.Graph;
+namespace T3.Editor.Gui;
 
 internal static class ParameterPopUp
 {

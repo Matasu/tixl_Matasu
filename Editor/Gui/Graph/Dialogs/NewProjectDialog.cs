@@ -9,7 +9,7 @@ using T3.Editor.SystemUi;
 using T3.Editor.UiModel;
 using GraphUtils = T3.Editor.UiModel.Helpers.GraphUtils;
 
-namespace T3.Editor.Gui.Graph.Dialogs;
+namespace T3.Editor.Gui.Dialogs;
 
 internal sealed class NewProjectDialog : ModalDialog
 {

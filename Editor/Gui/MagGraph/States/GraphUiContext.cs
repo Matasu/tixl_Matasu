@@ -1,7 +1,7 @@
 #nullable enable
 using System.Diagnostics;
 using T3.Core.Operator;
-using T3.Editor.Gui.Graph.Dialogs;
+using T3.Editor.Gui.Dialogs;
 using T3.Editor.Gui.MagGraph.Interaction;
 using T3.Editor.Gui.MagGraph.Model;
 using T3.Editor.Gui.MagGraph.Ui;

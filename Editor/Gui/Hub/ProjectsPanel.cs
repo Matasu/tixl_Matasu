@@ -2,7 +2,7 @@
 
 using ImGuiNET;
 using T3.Core.SystemUi;
-using T3.Editor.Gui.Graph.Window;
+using T3.Editor.Gui.Window;
 using T3.Editor.Gui.Input;
 using T3.Editor.Gui.Styling;
 using T3.Editor.UiModel;

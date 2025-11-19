@@ -321,4 +321,25 @@ internal sealed class NodeSelection : ISelection
     private static int _lastFrameCount;
     private static Guid _lastSelectionId = Guid.Empty;
 
+    public static void InvalidateSelectedOpsForTransformGizmo(NodeSelection nodeSelection)
+    {
+        // Keep invalidating the selected op to enforce rendering of Transform gizmo  
+        foreach (var si in nodeSelection.GetSelectedInstances().ToList())
+        {
+            if (si is not ITransformable)
+                continue;
+
+            foreach (var i in si.Inputs)
+            {
+                // Skip string inputs to prevent potential interference with resource file paths hooks
+                // I.e. Invalidating these every frame breaks shader recompiling if Shader-op is selected
+                if (i.ValueType != typeof(Vector3))
+                {
+                    continue;
+                }
+
+                i.DirtyFlag.ForceInvalidate();
+            }
+        }
+    }
 }

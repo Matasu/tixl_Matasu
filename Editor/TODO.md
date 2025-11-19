@@ -46,15 +46,17 @@
 - [ ] introduce "playmode" with a custom layout
   - [x] pin output to composition 
   - [x] load custom layout
-  - [ ] Hide ui-elements
+  - [x] Hide ui-elements
+  - [ ] Hide Output window toolbar
   - [ ] keep the app menu hidden
   - [ ] override layout switching etc. in playmode
   - [ ] maybe: prevent actions in the dropdown menu
-- [ ] add state machine for playmode 
+- [.] add state machine for playmode 
   - [x] design flow in figma
   - [ ] Play level tutorial
   - [ ] Level completed pop-up with progression to the next level / topic
-  - [ ] Exit to the main menu
+  - [ ] Continue to next level after completed
+  - [!] Exit to the main menu
   - [ ] Tips after time out?
   - [ ] Later: Player feedback
 - [ ] Difficulty modes (start with simple user settings)

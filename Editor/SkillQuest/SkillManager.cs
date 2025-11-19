@@ -2,7 +2,10 @@
 using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using T3.Core.UserData;
-using T3.Editor.Gui.Graph.Window;
+using T3.Editor.Gui;
+using T3.Editor.Gui.Interaction;
+using T3.Editor.Gui.MagGraph.Ui;
+using T3.Editor.Gui.Window;
 using T3.Editor.Gui.UiHelpers;
 using T3.Editor.Gui.Windows.Layouts;
 using T3.Editor.Gui.Windows.Output;
@@ -19,13 +22,18 @@ internal static partial class SkillManager
     {
         InitializeLevels();
 
-        LoadUserData();
-        SaveUserData();
+        SkillProgressUserData.LoadUserData();
+        SkillProgressUserData.SaveUserData();
     }
 
-    
     internal static void Update()
     {
+        var playmodeEnded = _context.GraphView is { Destroyed: true };
+        if (_stateMachine.CurrentState != SkillQuestStates.Inactive && playmodeEnded)
+        {
+            _stateMachine.SetState(SkillQuestStates.Inactive, _context);
+        }
+
         _stateMachine.UpdateAfterDraw(_context);
     }
 
@@ -89,46 +97,16 @@ internal static partial class SkillManager
         }
 
         graphWindow.TrySetToProject(openedProject);
-        
-        LayoutHandling.LoadAndApplyLayoutOrFocusMode(LayoutHandling.Layouts.SkillQuest);
+        _context.OpenedProject = openedProject;
 
-        if (ProjectView.Focused != null)
-        {
-            var rootInstance = openedProject.Structure.GetRootInstance();
-            var outputWindow = OutputWindow.GetPrimaryOutputWindow();
-            outputWindow?.Pinning.PinInstance(rootInstance);
-        }
-        
+        if (graphWindow.ProjectView?.GraphView is not MagGraphView magGraphView)
+            return;
+
+        _context.GraphView = magGraphView;
+
+        _stateMachine.SetState(SkillQuestStates.Playing, _context);
     }
-    
-    private static void LoadUserData()
-    {
-        if (!File.Exists(SkillProgressPath))
-        {
-            SkillQuestContext.SkillProgress = new SkillProgress(); // Fallback
-        }
-
-        try
-        {
-            SkillQuestContext.SkillProgress = JsonUtils.TryLoadingJson<SkillProgress>(SkillProgressPath);
-            if (SkillQuestContext.SkillProgress == null)
-                throw new Exception("Failed to load SkillProgress");
-        }
-        catch (Exception e)
-        {
-            Log.Error($"Failed to load {SkillProgressPath} : {e.Message}");
-            SkillQuestContext.SkillProgress = new SkillProgress();
-        }
-    }
-
-    private static void SaveUserData()
-    {
-        Directory.CreateDirectory(FileLocations.SettingsDirectory);
-        JsonUtils.TrySaveJson(SkillQuestContext.SkillProgress, SkillProgressPath);
-    }
-
-    private static string SkillProgressPath => Path.Combine(FileLocations.SettingsDirectory, "SkillProgress.json");
 
     private static readonly SkillQuestContext _context = new();
-    private static readonly StateMachine<SkillQuestContext> _stateMachine = new(SkillQuestStates.InActive);
+    private static readonly StateMachine<SkillQuestContext> _stateMachine = new(SkillQuestStates.Inactive);
 }

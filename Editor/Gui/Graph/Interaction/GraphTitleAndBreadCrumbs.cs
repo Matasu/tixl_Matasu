@@ -5,7 +5,7 @@ using T3.Core.Operator;
 using T3.Editor.Gui.Styling;
 using T3.Editor.UiModel.ProjectHandling;
 
-namespace T3.Editor.Gui.Graph.Interaction;
+namespace T3.Editor.Gui.Interaction;
 
 internal static class GraphTitleAndBreadCrumbs
 {

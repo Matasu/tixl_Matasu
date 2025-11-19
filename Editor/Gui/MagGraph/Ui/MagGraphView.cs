@@ -4,9 +4,8 @@ using System.Diagnostics.CodeAnalysis;
 using ImGuiNET;
 using T3.Core.Operator;
 using T3.Core.Operator.Slots;
-using T3.Editor.Gui.Graph.Interaction;
-using T3.Editor.Gui.Interaction;
 using T3.Editor.Gui.MagGraph.Interaction;
+using T3.Editor.Gui.Interaction;
 using T3.Editor.Gui.MagGraph.Model;
 using T3.Editor.Gui.MagGraph.States;
 using T3.Editor.Gui.UiHelpers;
@@ -40,7 +39,7 @@ internal sealed partial class MagGraphView : ScalableCanvas, IGraphView
             return projectView; // TODO: handle this properly
         }
 
-        var canvas = new MagGraphView(projectView);
+        var canvas = new Gui.MagGraph.Ui.MagGraphView(projectView);
         projectView.OnCompositionChanged += canvas.CompositionChangedHandler;
         projectView.OnCompositionContentChanged += canvas.CompositionContentChangedHandler;
 
@@ -65,7 +64,7 @@ internal sealed partial class MagGraphView : ScalableCanvas, IGraphView
     private readonly ProjectView _projectView;
 
     #region implement IGraph canvas
-    bool IGraphView.Destroyed { get => _destroyed; set => _destroyed = value; }
+    public bool Destroyed { get => _destroyed; set => _destroyed = value; }
 
     void IGraphView.FocusViewToSelection()
     {
@@ -131,7 +130,7 @@ internal sealed partial class MagGraphView : ScalableCanvas, IGraphView
             var placeholderPos = item.PosOnCanvas + new Vector2(-MagGraphItem.GridSize.X, 0);
             var currentVisibleArea = GetVisibleCanvasArea();
 
-            // If placeholder position is outside the left edge of visible area, scroll to make it visible
+            // If a placeholder position is outside the left edge of visible area, scroll to make it visible
             if (placeholderPos.X < currentVisibleArea.Min.X)
             {
                 var scrollOffset = currentVisibleArea.Min.X - placeholderPos.X*1.01f;

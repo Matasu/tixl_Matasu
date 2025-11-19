@@ -14,7 +14,7 @@ using T3.Editor.UiModel.ProjectHandling;
 using T3.Editor.UiModel.Selection;
 using Vector2 = System.Numerics.Vector2;
 
-namespace T3.Editor.Gui.Graph;
+namespace T3.Editor.Gui;
 
 /// <summary>
 /// A helper class to render an image output into the background of the graph window 
