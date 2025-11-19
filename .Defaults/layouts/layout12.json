@@ -1,0 +1,65 @@
+{
+  "WindowConfigs": [
+    {
+      "Title": "Output View##0",
+      "Visible": true
+    },
+    {
+      "Title": "Graph View##0",
+      "Visible": false
+    },
+    {
+      "Title": "Graph View##1",
+      "Visible": true
+    },
+    {
+      "Title": "Parameters##1",
+      "Visible": true
+    },
+    {
+      "Title": "Symbol Library",
+      "Visible": false
+    },
+    {
+      "Title": "Assets",
+      "Visible": false
+    },
+    {
+      "Title": "Variations",
+      "Visible": false
+    },
+    {
+      "Title": "Variation Explorer",
+      "Visible": false
+    },
+    {
+      "Title": "Render To File",
+      "Visible": false
+    },
+    {
+      "Title": "IO Events",
+      "Visible": false
+    },
+    {
+      "Title": "Console",
+      "Visible": false
+    },
+    {
+      "Title": "Utilities",
+      "Visible": false
+    },
+    {
+      "Title": "Settings",
+      "Visible": false
+    },
+    {
+      "Title": "Screen Manager",
+      "Visible": false
+    },
+    {
+      "Title": "Graph View##0",
+      "Visible": false
+    }
+  ],
+  "ImGuiSettings": "[Window][DockSpaceViewport_11111111]\nPos=0,26\nSize=2560,1414\nCollapsed=0\n\n[Window][Graph View##1]\nPos=0,26\nSize=1170,1414\nCollapsed=0\nDockId=0x00000001,0\n\n[Window][Parameters]\nPos=1661,710\nSize=442,568\nCollapsed=0\nDockId=0x00000005,0\n\n[Window][Variations]\nPos=1120,26\nSize=522,1414\nCollapsed=0\nDockId=0x00000009,0\n\n[Window][Output View##0]\nPos=1644,26\nSize=916,1414\nCollapsed=0\nDockId=0x00000004,0\n\n[Window][Debug##Default]\nPos=60,60\nSize=400,400\nCollapsed=0\n\n[Window][Explore Variations]\nPos=810,306\nSize=768,283\nCollapsed=0\n\n[Window][Console]\nPos=1336,1004\nSize=584,76\nCollapsed=0\nDockId=0x0000000A,0\n\n[Window][Output View##1]\nPos=0,26\nSize=2304,712\nCollapsed=0\n\n[Window][Symbol Library]\nPos=0,26\nSize=176,1414\nCollapsed=0\nDockId=0x00000007,0\n\n[Window][Render as Video]\nPos=2105,710\nSize=455,568\nCollapsed=0\nDockId=0x00000009,1\n\n[Window][##typeAheadSearchPopup]\nPos=1692,821\nSize=450,300\nCollapsed=0\n\n[Window][Combine into symbol]\nPos=1030,545\nSize=500,350\nCollapsed=0\n\n[Window][Parameters##98]\nPos=0,576\nSize=323,864\nCollapsed=0\n\n[Window][Add output]\nPos=1030,595\nSize=500,250\nCollapsed=0\n\n[Window][Duplicate as new symbol]\nPos=1030,580\nSize=500,280\nCollapsed=0\n\n[Window][Output View##97]\nPos=0,26\nSize=1728,927\nCollapsed=0\n\n[Window][Output View##98]\nPos=0,26\nSize=2304,593\nCollapsed=0\n\n[Window][Parameters##1]\nPos=1172,26\nSize=470,1414\nCollapsed=0\nDockId=0x0000000B,0\n\n[Window][Render To File]\nPos=1336,536\nSize=584,423\nCollapsed=0\nDockId=0x00000009,1\n\n[Window][Add parameter input]\nPos=1030,533\nSize=500,350\nCollapsed=0\n\n[Window][Variation Explorer]\nPos=0,26\nSize=1315,1414\nCollapsed=0\n\n[Window][Dear ImGui Demo]\nPos=650,46\nSize=550,680\nCollapsed=0\n\n[Window][Search]\nPos=710,390\nSize=500,300\nCollapsed=0\n\n[Window][##CurvePopup]\nPos=1164,199\nSize=500,400\nCollapsed=0\n\n[Window][Settings]\nPos=60,60\nSize=550,681\nCollapsed=0\n\n[Window][Output View##99]\nPos=763,26\nSize=1157,948\nCollapsed=0\n\n[Window][Rename symbol]\nPos=710,365\nSize=500,350\nCollapsed=0\n\n[Window][Edit description]\nPos=410,190\nSize=1100,700\nCollapsed=0\n\n[Window][Rename input]\nPos=710,365\nSize=500,350\nCollapsed=0\n\n[Window][Edit comment]\nPos=710,315\nSize=500,450\nCollapsed=0\n\n[Docking][Data]\nDockSpace             ID=0x8B93E3BD Window=0xA787BDB4 Pos=0,26 Size=2560,1414 Split=X Selected=0x1F46795C\n  DockNode            ID=0x00000003 Parent=0x8B93E3BD SizeRef=1642,1414 Split=X\n    DockNode          ID=0x00000007 Parent=0x00000003 SizeRef=176,1391 Selected=0xCA18E6EB\n    DockNode          ID=0x00000008 Parent=0x00000003 SizeRef=1742,1391 Split=X\n      DockNode        ID=0x00000001 Parent=0x00000008 SizeRef=992,1391 CentralNode=1 HiddenTabBar=1 Selected=0xF7A0F8A9\n      DockNode        ID=0x00000002 Parent=0x00000008 SizeRef=470,1391 Split=X Selected=0x9CE63BF6\n        DockNode      ID=0x00000005 Parent=0x00000002 SizeRef=442,365 Selected=0x9CE63BF6\n        DockNode      ID=0x00000006 Parent=0x00000002 SizeRef=455,365 Split=X Selected=0x3BC11B9B\n          DockNode    ID=0x0000000B Parent=0x00000006 SizeRef=392,568 HiddenTabBar=1 Selected=0x9CE63BF6\n          DockNode    ID=0x0000000C Parent=0x00000006 SizeRef=522,568 Split=Y Selected=0x3BC11B9B\n            DockNode  ID=0x00000009 Parent=0x0000000C SizeRef=450,466 Selected=0x3BC11B9B\n            DockNode  ID=0x0000000A Parent=0x0000000C SizeRef=450,76 Selected=0x49278EEE\n  DockNode            ID=0x00000004 Parent=0x8B93E3BD SizeRef=916,1414 HiddenTabBar=1 Selected=0xC11E5CAE\n\n"
+}

@@ -1,4 +1,4 @@
-#nullable  enable
+#nullable enable
 using System.Diagnostics;
 using System.Threading.Tasks;
 using ImGuiNET;
@@ -53,7 +53,6 @@ public static class T3Ui
         if (_initialed || ImGui.GetWindowSize() == Vector2.Zero)
             return;
 
-
         CompatibleMidiDeviceHandling.InitializeConnectedDevices();
         _initialed = true;
     }
@@ -72,16 +71,18 @@ public static class T3Ui
 
         // Prepare the current frame 
         RenderStatsCollector.StartNewFrame();
-        
+
         UpdateProjectsIfNecessary();
 
         if (!Playback.Current.IsRenderingToFile && ProjectView.Focused != null)
         {
             PlaybackUtils.UpdatePlaybackAndSyncing();
-            AudioEngine.CompleteFrame(Playback.Current, Playback.LastFrameDuration);  
+            AudioEngine.CompleteFrame(Playback.Current, Playback.LastFrameDuration);
         }
+
         ScreenshotWriter.Update();
         RenderProcess.Update();
+        SkillQuest.SkillManager.Update();
 
         ResourceManager.RaiseFileWatchingEvents();
 
@@ -92,11 +93,11 @@ public static class T3Ui
         // A workaround for potential mouse capture
         DragFieldWasHoveredLastFrame = DragFieldHovered;
         DragFieldHovered = false;
-        
+
         FitViewToSelectionHandling.ProcessNewFrame();
         SrvManager.RemoveForDisposedTextures();
         KeyActionHandling.InitializeFrame();
-        
+
         CompatibleMidiDeviceHandling.UpdateConnectedDevices();
 
         var nodeSelection = ProjectView.Focused?.NodeSelection;
@@ -107,8 +108,6 @@ public static class T3Ui
             MouseInput.SelectedChildId = selectedInstance?.SymbolChildId ?? Guid.Empty;
             InvalidateSelectedOpsForTransformGizmo(nodeSelection);
         }
-        
-        
 
         // Draw everything!
         ImGui.DockSpaceOverViewport();
@@ -116,11 +115,10 @@ public static class T3Ui
         ImGui.PushStyleVar(ImGuiStyleVar.WindowBorderSize, 1);
         WindowManager.Draw();
         ImGui.PopStyleVar();
-            
+
         // Complete frame
         SingleValueEdit.StartNextFrame();
-        
-        
+
         FrameStats.CompleteFrame();
         TriggerGlobalActionsFromKeyBindings();
 
@@ -128,7 +126,7 @@ public static class T3Ui
         {
             AppMenuBar.DrawAppMenuBar();
         }
-            
+
         _searchDialog.Draw();
         NewProjectDialog.Draw();
         CreateFromTemplateDialog.Draw();
@@ -138,7 +136,7 @@ public static class T3Ui
 
         if (IsWindowLayoutComplete())
         {
-            if (!UserSettings.IsUserNameDefined() )
+            if (!UserSettings.IsUserNameDefined())
             {
                 UserSettings.Config.UserName = Environment.UserName;
                 _userNameDialog.ShowNextFrame();
@@ -155,7 +153,7 @@ public static class T3Ui
 
     private static void UpdateProjectsIfNecessary()
     {
-        foreach(var project in EditableSymbolProject.AllProjects)
+        foreach (var project in EditableSymbolProject.AllProjects)
         {
             project.Update(out var needsUpdating);
             if (needsUpdating)
@@ -169,13 +167,13 @@ public static class T3Ui
             var projects = _modifiedProjects.Cast<EditorSymbolPackage>().ToArray();
             ProjectSetup.UpdateSymbolPackages(projects);
         }
-        
+
         _modifiedProjects.Clear();
     }
 
     private static void InvalidateSelectedOpsForTransformGizmo(NodeSelection nodeSelection)
     {
-        // Keep invalidating selected op to enforce rendering of Transform gizmo  
+        // Keep invalidating the selected op to enforce rendering of Transform gizmo  
         foreach (var si in nodeSelection.GetSelectedInstances().ToList())
         {
             if (si is not ITransformable)
@@ -235,7 +233,7 @@ public static class T3Ui
         var activeComponents = ProjectView.Focused;
         if (activeComponents == null)
             return;
-        
+
         var shouldBeFocusMode = !UserSettings.Config.FocusMode;
 
         var outputWindow = OutputWindow.GetPrimaryOutputWindow();
@@ -249,7 +247,9 @@ public static class T3Ui
         UserSettings.Config.FocusMode = shouldBeFocusMode;
         UserSettings.Config.ShowToolbar = shouldBeFocusMode;
         ToggleAllUiElements();
-        LayoutHandling.LoadAndApplyLayoutOrFocusMode(shouldBeFocusMode ? 11 : UserSettings.Config.WindowLayoutIndex);
+        LayoutHandling.LoadAndApplyLayoutOrFocusMode(shouldBeFocusMode
+                                                         ? LayoutHandling.Layouts.FocusMode
+                                                         : (LayoutHandling.Layouts)UserSettings.Config.WindowLayoutIndex);
 
         outputWindow = OutputWindow.GetPrimaryOutputWindow();
         if (!shouldBeFocusMode && outputWindow != null)
@@ -317,17 +317,16 @@ public static class T3Ui
         var compositionOp = components.CompositionInstance;
 
         var symbolUi = compositionOp.GetSymbolUi();
-        
-        if(!symbolUi.ChildUis.TryGetValue(symbolChildId, out var sourceChildUi))
+
+        if (!symbolUi.ChildUis.TryGetValue(symbolChildId, out var sourceChildUi))
             return;
-        
-        if(!compositionOp.Children.TryGetChildInstance(symbolChildId, out var selectionTargetInstance))
+
+        if (!compositionOp.Children.TryGetChildInstance(symbolChildId, out var selectionTargetInstance))
             return;
-        
+
         components.NodeSelection.SetSelection(sourceChildUi, selectionTargetInstance);
         FitViewToSelectionHandling.FitViewToSelection();
     }
-    
 
     /// <summary>
     /// Statistics method for debug purpose
@@ -349,7 +348,6 @@ public static class T3Ui
     //         Log.Debug($"{s.Name} - {s.Namespace}  {c}");
     //     }
     // }
-    
 
     //@imdom: needs clarification how to handle osc data disconnection on shutdown
     // public void Dispose()
@@ -357,12 +355,13 @@ public static class T3Ui
     //     GC.SuppressFinalize(this);
     //     OscDataRecording.Dispose();
     // }
-    
+
     internal static bool MouseWheelFieldHovered { private get; set; }
+
     internal static bool MouseWheelFieldWasHoveredLastFrame { get; private set; }
     internal static bool DragFieldHovered { private get; set; }
     internal static bool DragFieldWasHoveredLastFrame { get; private set; }
-    
+
     internal static bool ShowSecondaryRenderWindow => WindowManager.ShowSecondaryRenderWindow;
     internal const string FloatNumberFormat = "{0:F2}";
 
@@ -399,6 +398,4 @@ public static class T3Ui
 
     internal static bool UseVSync = true;
     public static bool ItemRegionsVisible;
-    
-
 }

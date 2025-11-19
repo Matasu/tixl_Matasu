@@ -73,7 +73,7 @@ internal sealed class CameraSelectionHandling
 
     private NodeSelection? NodeSelection => _nodeSelection ?? ProjectView.Focused?.NodeSelection;
 
-    public void Update(Instance? drawnInstance, Type drawnType, bool preventInteractions = false)
+    public void Update(Instance? drawnInstance, Type? drawnType, bool preventInteractions = false)
     {
         var currentPlayback = _getPlayback();
         var timeInBars = currentPlayback.TimeInBars;

@@ -78,7 +78,8 @@ internal sealed class GraphWindow : Windows.Window
         ProjectView = UserSettings.Config.GraphStyle == UserSettings.GraphStyles.Magnetic
                           ? MagGraphView.CreateWithComponents(project)
                           : Legacy.GraphView.CreateWithComponents(project);
-        
+
+        ProjectView.SetAsFocused();
         // ProjectView = MagGraphCanvas.CreateWithComponents(project);
         // ProjectView = Legacy.GraphCanvas.CreateWithComponents(project);
         ProjectView.OnCompositionChanged += CompositionChangedHandler;

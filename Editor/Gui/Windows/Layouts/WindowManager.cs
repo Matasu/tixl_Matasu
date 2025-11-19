@@ -78,7 +78,7 @@ internal static partial class WindowManager
 
     private static void ReApplyLayout()
     {
-        LayoutHandling.LoadAndApplyLayoutOrFocusMode(UserSettings.Config.WindowLayoutIndex);
+        LayoutHandling.LoadAndApplyLayoutOrFocusMode((LayoutHandling.Layouts)UserSettings.Config.WindowLayoutIndex);
     }
 
     internal static IEnumerable<Window> GetAllWindows()

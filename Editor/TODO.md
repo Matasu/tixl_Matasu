@@ -36,22 +36,25 @@
 
 - [x] Design for HUB, title, etc.
 - [ ] Serialize user progress
-- [ ] Model for a level progression map (JSON?)
+- [x] Model for a level progression map (JSON?)
 - [x] model for user progress
-- [ ] HUB Area
-  - [ ] Show next Topic/Level with action
-    - [ ] Infer next level from active Topic and User results (e.g. completed, skipped etc.)
-  - [ ] Fake button for complete
-  - [ ] Serialize button (fake)
+- [x] HUB Area
+  - [/] Show next Topic/Level with action
+    - [ ] Infer the next level from active Topic and User results (e.g. completed, skipped etc.)
   - [ ] Toolbar with reset
     - Later: [ ] List zones and levels with status
 - [ ] introduce "playmode" with a custom layout
+  - [x] pin output to composition 
+  - [x] load custom layout
+  - [ ] Hide ui-elements
+  - [ ] keep the app menu hidden
   - [ ] override layout switching etc. in playmode
+  - [ ] maybe: prevent actions in the dropdown menu
 - [ ] add state machine for playmode 
   - [x] design flow in figma
-  - [ ] Intro page
   - [ ] Play level tutorial
-  - [ ] Level completed
+  - [ ] Level completed pop-up with progression to the next level / topic
+  - [ ] Exit to the main menu
   - [ ] Tips after time out?
   - [ ] Later: Player feedback
 - [ ] Difficulty modes (start with simple user settings)

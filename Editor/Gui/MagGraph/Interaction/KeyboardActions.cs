@@ -86,9 +86,11 @@ internal static class KeyboardActions
             }
             else
             {
-                // FIXME: This is a work around that needs a legacy graph window to be active
                 if (ProjectView.Focused != null)
-                    NodeActions.PinSelectedToOutputWindow(ProjectView.Focused, context.Selector, compositionOp, true);
+                    NodeActions.PinSelectedToOutputWindow(ProjectView.Focused, 
+                                                          context.Selector, 
+                                                          compositionOp, 
+                                                          true);
             }
         }
 

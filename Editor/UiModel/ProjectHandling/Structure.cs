@@ -15,13 +15,17 @@ namespace T3.Editor.UiModel.ProjectHandling;
 internal sealed class Structure
 {
     private readonly Func<Symbol.Child> _getRootAction;
-
     
     public Structure(Func<Symbol.Child> getRootAction)
     {
         _getRootAction = getRootAction;
     }
 
+    public Instance? GetRootInstance()
+    {
+        return GetInstanceFromIdPath([_getRootAction().Id]);
+    }
+    
     public Instance? GetInstanceFromIdPath(IReadOnlyList<Guid>? childPath)
     {
         if (childPath == null || childPath.Count == 0)

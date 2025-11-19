@@ -4,6 +4,8 @@ using System.IO;
 using T3.Core.UserData;
 using T3.Editor.Gui.Graph.Window;
 using T3.Editor.Gui.UiHelpers;
+using T3.Editor.Gui.Windows.Layouts;
+using T3.Editor.Gui.Windows.Output;
 using T3.Editor.SkillQuest.Data;
 using T3.Editor.UiModel;
 using T3.Editor.UiModel.ProjectHandling;
@@ -21,6 +23,7 @@ internal static partial class SkillManager
         SaveUserData();
     }
 
+    
     internal static void Update()
     {
         _stateMachine.UpdateAfterDraw(_context);
@@ -71,7 +74,7 @@ internal static partial class SkillManager
         return false;
     }
 
-    public static void StartGame(GraphWindow window, QuestLevel activeLevel)
+    public static void StartGame(GraphWindow graphWindow, QuestLevel activeLevel)
     {
         if (!TryGetSkillsProject(out var skillProject))
             return;
@@ -85,11 +88,19 @@ internal static partial class SkillManager
             return;
         }
 
-        window.TrySetToProject(openedProject);
+        graphWindow.TrySetToProject(openedProject);
+        
+        LayoutHandling.LoadAndApplyLayoutOrFocusMode(LayoutHandling.Layouts.SkillQuest);
+
+        if (ProjectView.Focused != null)
+        {
+            var rootInstance = openedProject.Structure.GetRootInstance();
+            var outputWindow = OutputWindow.GetPrimaryOutputWindow();
+            outputWindow?.Pinning.PinInstance(rootInstance);
+        }
+        
     }
-
-    //private static bool isOpened;
-
+    
     private static void LoadUserData()
     {
         if (!File.Exists(SkillProgressPath))
