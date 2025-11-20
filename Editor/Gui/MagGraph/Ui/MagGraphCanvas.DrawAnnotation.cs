@@ -54,27 +54,32 @@ internal sealed partial class MagGraphView
 
         // Header
         ImGui.SetCursorScreenPos(clickableArea.Min);
-        ImGui.InvisibleButton("##annotationHeader", clickableArea.GetSize());
+        var isRenaming = context.ActiveAnnotationId == magAnnotation.Id &&
+                         context.StateMachine.CurrentState == GraphStates.RenameAnnotation;
+        if (!isRenaming)
+        {        
+            ImGui.InvisibleButton("##annotationHeader", clickableArea.GetSize());
 
-        DrawUtils.DebugItemRect();
-        var isHeaderHovered = ImGui.IsItemHovered() && context.StateMachine.CurrentState == GraphStates.Default;
-        if (isHeaderHovered)
-        {
-            ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
-        }
+            DrawUtils.DebugItemRect();
+            var isHeaderHovered = ImGui.IsItemHovered() && context.StateMachine.CurrentState == GraphStates.Default;
+            if (isHeaderHovered)
+            {
+                ImGui.SetMouseCursor(ImGuiMouseCursor.Hand);
+            }
+            
+            //const float backgroundAlpha = 0.2f;
+            const float headerHoverAlpha = 0.1f;
+            drawList.AddRectFilled(clickableArea.Min, clickableArea.Max,
+                                   UiColors.ForegroundFull.Fade(isHeaderHovered
+                                                                    ? headerHoverAlpha
+                                                                    : 0), rounding, ImDrawFlags.RoundCornersTop);
 
-        //const float backgroundAlpha = 0.2f;
-        const float headerHoverAlpha = 0.1f;
-        drawList.AddRectFilled(clickableArea.Min, clickableArea.Max,
-                               UiColors.ForegroundFull.Fade(isHeaderHovered
-                                                                ? headerHoverAlpha
-                                                                : 0), rounding, ImDrawFlags.RoundCornersTop);
-
-        // Clicked -> Drag
-        if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && !ImGui.GetIO().KeyAlt)
-        {
-            context.ActiveAnnotationId = magAnnotation.Id;
-            context.StateMachine.SetState(GraphStates.DragAnnotation, context);
+            // Clicked -> Drag
+            if (ImGui.IsItemClicked(ImGuiMouseButton.Left) && !ImGui.GetIO().KeyAlt)
+            {
+                context.ActiveAnnotationId = magAnnotation.Id;
+                context.StateMachine.SetState(GraphStates.DragAnnotation, context);
+            }
         }
 
         // Double-Click -> Rename
