@@ -18,7 +18,9 @@ internal static partial class SkillManager
         QuestTopic? topic = null;
         QuestTopic? lastTopic = null;
         
-        foreach (var symbol in skills.Symbols.Values.OrderBy(c => c.Namespace))
+        foreach (var symbol in skills.Symbols.Values
+                                     .OrderBy(c => c.Namespace)
+                                     .ThenBy(c => c.Name))
         {
             var startingNewTopic = symbol.Namespace != lastNamespace;
             if (startingNewTopic)

@@ -234,7 +234,10 @@ internal sealed partial class ProjectView
         UserSettings.Save();
     }
 
-    public bool TrySetCompositionOp(IReadOnlyList<Guid> newIdPath, ScalableCanvas.Transition transition = ScalableCanvas.Transition.JumpIn, Guid? alsoSelectChildId = null)
+    public bool TrySetCompositionOp(IReadOnlyList<Guid> newIdPath, 
+                                    ScalableCanvas.Transition transition = ScalableCanvas.Transition.JumpIn, 
+                                    Guid? alsoSelectChildId = null,
+                                    bool tryRestoreViewArea = true)
     {
         var structure = OpenedProject.Structure;
         var newCompositionInstance = structure.GetInstanceFromIdPath(newIdPath);
@@ -288,8 +291,6 @@ internal sealed partial class ProjectView
                 //var instance = InstView.Instance.Children[alsoSelectChildId.Value];
                 NodeSelection.SetSelection(instance.GetChildUi()!, instance);
                 var bounds = NodeSelection.GetSelectionBounds(NodeSelection, instance, 400);
-                //var viewScope = ScalableCanvas.GetScopeForCanvasArea(bounds);
-                //ScalableCanvas.SetScopeWithTransition(viewScope, compositionChanged ? transition : ScalableCanvas.Transition.Smooth);
                 ScalableCanvas.RequestTargetViewAreaWithTransition(bounds, 
                                                                compositionChanged ? transition : ScalableCanvas.Transition.Smooth);
             }
@@ -299,8 +300,19 @@ internal sealed partial class ProjectView
             
                 var compositionOpSymbolChildId = CompositionInstance.SymbolChildId;
                 IEnumerable<ISelectableCanvasObject> childUisValues = InstView.SymbolUi.ChildUis.Values;
-                var savedOrValidView = CanvasHelpers.GetSavedOrValidViewForComposition(compositionOpSymbolChildId, childUisValues);
-                ScalableCanvas.RequestTargetViewAreaWithTransition(savedOrValidView, transition);
+
+                if (tryRestoreViewArea)
+                {
+                    var savedOrValidView = CanvasHelpers.GetSavedOrValidViewForComposition(compositionOpSymbolChildId, childUisValues);
+                    ScalableCanvas.RequestTargetViewAreaWithTransition(savedOrValidView, transition);
+                }
+                else
+                {
+                    var areaOnCanvas = NodeSelection.GetSelectionBounds(NodeSelection, CompositionInstance);
+                    ScalableCanvas.RequestTargetViewAreaWithTransition(areaOnCanvas, transition);
+                    FocusViewToSelection();
+                }
+                
             }
         }
         
@@ -365,6 +377,18 @@ internal sealed partial class ProjectView
     {
         Focused = this;
     }
+
+    public void FocusViewToSelection()
+    {
+        if (CompositionInstance == null)
+            return;
+        
+        var areaOnCanvas = NodeSelection.GetSelectionBounds(NodeSelection, CompositionInstance);
+        areaOnCanvas.Expand(200);
+        
+        GraphView.Canvas.FitAreaOnCanvas(areaOnCanvas);
+    }
+    
     
     public static ProjectView? Focused { get; private set; }
 }

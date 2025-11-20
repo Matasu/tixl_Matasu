@@ -5,6 +5,7 @@ using T3.Editor.Gui.Interaction;
 using T3.Editor.Gui.Interaction.Keyboard;
 using T3.Editor.Gui.MagGraph.Model;
 using T3.Editor.Gui.UiHelpers;
+using T3.Editor.SkillQuest;
 using T3.Editor.UiModel.Commands.Graph;
 using T3.Editor.UiModel.ProjectHandling;
 using MagItemMovement = T3.Editor.Gui.MagGraph.Interaction.MagItemMovement;
@@ -111,7 +112,10 @@ namespace T3.Editor.Gui.MagGraph.States
                                   return;
 
                               // Open children or parent component
-                              if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left) && ProjectView.Focused != null)
+                              if (ImGui.IsMouseDoubleClicked(ImGuiMouseButton.Left) 
+                                  && ProjectView.Focused != null
+                                  && !SkillManager.IsInPlayMode
+                                  )
                               {
                                   var clickedBackground = context.ActiveItem == null;
                                   if (clickedBackground)

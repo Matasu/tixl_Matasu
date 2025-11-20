@@ -61,7 +61,7 @@ internal sealed class GraphWindow : Windows.Window
     /// <summary>
     /// Initialize <see cref="ProjectView"/> to for a loaded project 
     /// </summary>
-    internal bool TrySetToProject(OpenedProject project)
+    internal bool TrySetToProject(OpenedProject project, bool tryRestoreViewArea = true)
     {
         if (!project.Package.HasHome)
         {
@@ -92,8 +92,8 @@ internal sealed class GraphWindow : Windows.Window
         }
 
         const ScalableCanvas.Transition transition = ScalableCanvas.Transition.JumpIn;
-        if (!ProjectView.TrySetCompositionOp(startPath, transition)
-            && !ProjectView.TrySetCompositionOp(rootPath, transition))
+        if (!ProjectView.TrySetCompositionOp(startPath, transition, tryRestoreViewArea: tryRestoreViewArea)
+            && !ProjectView.TrySetCompositionOp(rootPath, transition, tryRestoreViewArea: tryRestoreViewArea))
         {
             Log.Warning("Can't set composition op");
             return false;
@@ -191,15 +191,13 @@ internal sealed class GraphWindow : Windows.Window
                          | ImGuiWindowFlags.ChildWindow);
         {
             // ImageBackground
+            ProjectView.GraphImageBackground.Draw(backgroundImageOpacity);
+            
+            var graphHiddenWhileInteractiveWithBackground = ProjectView.GraphImageBackground.IsActive && TransformGizmoHandling.IsDragging;
+            if (!graphHiddenWhileInteractiveWithBackground)
             {
-                ProjectView.GraphImageBackground.Draw(backgroundImageOpacity);
-                
-                var graphHiddenWhileInteractiveWithBackground = ProjectView.GraphImageBackground.IsActive && TransformGizmoHandling.IsDragging;
-                if (!graphHiddenWhileInteractiveWithBackground)
-                {
-                    var drawList = ImGui.GetWindowDrawList();
-                    DrawGraphContent(drawList);
-                }
+                var drawList = ImGui.GetWindowDrawList();
+                DrawGraphContent(drawList);
             }
             
         }

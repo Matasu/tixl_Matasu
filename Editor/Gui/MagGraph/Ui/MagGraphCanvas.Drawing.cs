@@ -42,7 +42,7 @@ internal sealed partial class MagGraphView
             // Update view scope if required
             if (FitViewToSelectionHandling.FitViewToSelectionRequested)
             {
-                FocusViewToSelection(_context);
+                _context.ProjectView.FocusViewToSelection();
             }
 
             // Keep visible canvas area to cull non-visible objects later

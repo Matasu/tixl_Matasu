@@ -21,9 +21,7 @@ internal static class KeyboardActions
 
         if (UserActions.FocusSelection.Triggered())
         {
-            // TODO: Implement
-            Log.Debug("Not implemented yet");
-            context.View.FocusViewToSelection(context);
+            context.ProjectView.FocusViewToSelection();
         }
 
         if (!T3Ui.IsCurrentlySaving && UserActions.Duplicate.Triggered())

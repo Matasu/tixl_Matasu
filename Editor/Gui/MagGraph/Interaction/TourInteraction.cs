@@ -77,13 +77,13 @@ internal static class TourInteraction
             for (int dotIndex = 0; dotIndex < tourPointsCount; dotIndex++)
             {
                 var pos = cursorPos2 
-                          + new Vector2(0, 40 * dotIndex / (float)tourPointsCount);
+                          + new Vector2(0, 40 * T3Ui.UiScaleFactor * dotIndex / (float)tourPointsCount);
 
                 var isCurrent = dotIndex == progressIndex;
                 var radius = 3 + (isCurrent ? 3/(timeSinceInteraction * 2f + 1) :0);
                 
                 var color = isCurrent ? UiColors.StatusActivated : UiColors.ForegroundFull.Fade(0.3f);
-                dl.AddCircleFilled(pos, radius, color, 23);
+                dl.AddCircleFilled(pos, radius, color, 16);
             }
 
             // Draw graph indicator...
@@ -144,7 +144,7 @@ internal static class TourInteraction
                 ImGui.TextUnformatted(paragraph);
 
                 // Add paragraph spacing
-                ImGui.Dummy(new Vector2(0, paragraphSpacing));
+                ImGui.Dummy(new Vector2(0, paragraphSpacing * T3Ui.UiScaleFactor));
 
                 //i += 1; // skip second \n
                 start = i + 1;

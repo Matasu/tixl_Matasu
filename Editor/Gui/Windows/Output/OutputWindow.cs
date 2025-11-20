@@ -11,6 +11,7 @@ using T3.Editor.Gui.Styling;
 using T3.Editor.Gui.UiHelpers;
 using T3.Editor.Gui.Windows.Layouts;
 using T3.Editor.Gui.Windows.RenderExport;
+using T3.Editor.SkillQuest;
 using T3.Editor.UiModel;
 using Texture2D = T3.Core.DataTypes.Texture2D;
 using Vector2 = System.Numerics.Vector2;
@@ -127,14 +128,16 @@ internal sealed class OutputWindow : Window
                 var drawnType = UpdateAndDrawOutput(drawnInstance, evaluationInstance);
                 ImageOutputCanvas.Deactivate();
                 _camSelectionHandling.Update(drawnInstance, drawnType);
-                var editingFlags = _camSelectionHandling.PreventCameraInteraction | _camSelectionHandling.PreventImageCanvasInteraction |
-                                   drawnType != typeof(Texture2D)
+                var editingFlags = _camSelectionHandling.PreventCameraInteraction 
+                                   | _camSelectionHandling.PreventImageCanvasInteraction
+                                   | SkillManager.IsInPlayMode
+                                   | drawnType != typeof(Texture2D)
                                        ? T3Ui.EditingFlags.PreventMouseInteractions
                                        : T3Ui.EditingFlags.None;
 
                 if ((editingFlags & T3Ui.EditingFlags.PreventMouseInteractions) != 0)
                     T3Ui.UiScaleFactor = 1;
-
+                
                 _imageCanvas.Update(editingFlags);
 
                 T3Ui.UiScaleFactor = keepScale;
@@ -157,8 +160,13 @@ internal sealed class OutputWindow : Window
                 ImGui.PushStyleColor(ImGuiCol.ButtonHovered, UiColors.BackgroundHover.Rgba);
                 ImGui.PushStyleColor(ImGuiCol.ChildBg, Vector4.Zero);
                 ImGui.PushStyleColor(ImGuiCol.ScrollbarBg, new Vector4(0.3f, 0.3f, 0.3f, 0.1f));
-                DrawToolbar(drawnType);
-                DrawRenderProgressBar();
+
+                if (!SkillManager.IsInPlayMode)
+                {
+                    DrawToolbar(drawnType);
+                    DrawRenderProgressBar();
+                }
+                
                 ImGui.PopStyleColor(6);
             }
 

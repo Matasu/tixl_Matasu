@@ -74,6 +74,13 @@ internal sealed partial class MagGraphView : ScalableCanvas, IGraphView
         var selectionBounds = NodeSelection.GetSelectionBounds(_projectView.NodeSelection, _projectView.CompositionInstance);
         FitAreaOnCanvas(selectionBounds);
     }
+    
+    public void FocusViewToSelection(GraphUiContext context)
+    {
+        var areaOnCanvas = NodeSelection.GetSelectionBounds(context.Selector, context.CompositionInstance);
+        areaOnCanvas.Expand(200);
+        FitAreaOnCanvas(areaOnCanvas);
+    }
 
     void IGraphView.OpenAndFocusInstance(IReadOnlyList<Guid> path)
     {
@@ -445,10 +452,5 @@ internal sealed partial class MagGraphView : ScalableCanvas, IGraphView
 
     protected override ScalableCanvas? Parent => null;
 
-    public void FocusViewToSelection(GraphUiContext context)
-    {
-        var areaOnCanvas = NodeSelection.GetSelectionBounds(context.Selector, context.CompositionInstance);
-        areaOnCanvas.Expand(200);
-        FitAreaOnCanvas(areaOnCanvas);
-    }
+
 }

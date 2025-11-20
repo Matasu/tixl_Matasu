@@ -13,6 +13,7 @@ using T3.Editor.Gui.Windows.Output;
 using T3.Editor.SkillQuest.Data;
 using T3.Editor.UiModel;
 using T3.Editor.UiModel.ProjectHandling;
+using T3.Editor.UiModel.Selection;
 
 namespace T3.Editor.SkillQuest;
 
@@ -48,7 +49,8 @@ internal static partial class SkillManager
             return;
         }
 
-        _context.GraphWindow.TrySetToProject(openedProject);
+        _context.GraphWindow.TrySetToProject(openedProject, tryRestoreViewArea:false);
+        _context.ProjectView?.FocusViewToSelection();
         _context.OpenedProject = openedProject;
         _context.ProjectView = _context.GraphWindow.ProjectView;
         
@@ -80,6 +82,9 @@ internal static partial class SkillManager
         }
         outputWindow.Pinning.PinInstance(rootInstance);
         TourInteraction.SetProgressIndex(rootInstance.Symbol.Id, 0);
+
+
+        FitViewToSelectionHandling.FitViewToSelection();
         
         _context.StateMachine.SetState(SkillQuestStates.Playing, _context);
     }
@@ -253,6 +258,8 @@ internal static partial class SkillManager
         _context.OpenedProject.Package.Reload(homeSymbolId);
         _context.StateMachine.SetState(SkillQuestStates.Inactive, _context);
     }
+
+    public static bool IsInPlayMode=> _context.StateMachine.CurrentState == SkillQuestStates.Playing;
 
     public static void DrawLevelHeader()
     {

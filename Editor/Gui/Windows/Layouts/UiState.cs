@@ -78,11 +78,13 @@ internal static class UiState
         UserSettings.Config.ShowTitleAndDescription = false;
         UserSettings.Config.ShowToolbar = false;
         UserSettings.Config.ShowTimeline = false;
+        UserSettings.Config.EnableMainMenuHoverPeek = false;
     }
 
     internal static UiElementsVisibility KeepUiState()
     {
         return new UiElementsVisibility(UserSettings.Config.ShowMainMenu,
+                                        UserSettings.Config.EnableMainMenuHoverPeek,
                                         UserSettings.Config.ShowTitleAndDescription,
                                         UserSettings.Config.ShowToolbar,
                                         UserSettings.Config.ShowTimeline,
@@ -94,6 +96,7 @@ internal static class UiState
     internal static void ApplyUiState(UiElementsVisibility state)
     {
         UserSettings.Config.ShowMainMenu= state.MainMenu;
+        UserSettings.Config.EnableMainMenuHoverPeek = state.MainMenu;
         UserSettings.Config.ShowTitleAndDescription= state.TitleAndDescription;
         UserSettings.Config.ShowToolbar= state.GraphToolbar;
         UserSettings.Config.ShowTimeline= state.Timeline;
@@ -105,6 +108,7 @@ internal static class UiState
 
     internal sealed record UiElementsVisibility(
         bool MainMenu,
+        bool EnableMainMenuPeek,
         bool TitleAndDescription,
         bool GraphToolbar,
         bool Timeline,
