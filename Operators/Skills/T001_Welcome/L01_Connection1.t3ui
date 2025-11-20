@@ -35,6 +35,26 @@
       }
     }
   ],
+  "Annotations": [
+    {
+      "Id": "0686ad8d-9d20-4ced-8bad-2abff7ce1051",
+      "Label": "Solution (hidden)",
+      "Color": {
+        "X": 0.6,
+        "Y": 0.6,
+        "Z": 0.6,
+        "W": 1.0
+      },
+      "Position": {
+        "X": 1274.8286,
+        "Y": 2050.2646
+      },
+      "Size": {
+        "X": 230.0,
+        "Y": 265.0
+      }
+    }
+  ],
   "TourPoints": [
     {
       "Id": "7e6bc27a-5dd8-4df5-a5b7-84ae7d15d279",

@@ -49,9 +49,9 @@
       "SymbolId": "bf7fcd04-0cf6-4518-86cc-48f74483d98d",
       "InputValues": [
         {
-          "Id": "d2401798-593b-4cc3-85d8-3570ddec1f2a"/*Scale*/,
+          "Id": "202340b4-0629-40a1-9399-0cda047df116"/*Rotate*/,
           "Type": "System.Single",
-          "Value": 0.25
+          "Value": 13876.9
         }
       ],
       "Outputs": []
