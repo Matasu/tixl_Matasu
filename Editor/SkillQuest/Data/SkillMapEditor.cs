@@ -1,18 +1,16 @@
 ﻿#nullable enable
 
 using ImGuiNET;
-using T3.Core.DataTypes;
 using T3.Core.Utils;
 using T3.Editor.Gui;
 using T3.Editor.Gui.Input;
 using T3.Editor.Gui.Styling;
 using T3.Editor.Gui.UiHelpers;
-using T3.Editor.UiModel.InputsAndTypes;
 using T3.Editor.UiModel.Selection;
 
 namespace T3.Editor.SkillQuest.Data;
 
-internal static class SkillMapPopup
+internal static class SkillMapEditor
 {
     private static bool _isOpen;
 
@@ -80,9 +78,7 @@ internal static class SkillMapPopup
                     SkillMap.Save();
                 }
 
-                _canvas.UpdateCanvas(out _);
-                
-                DrawContent();
+                DrawInteractiveMap();
             }
 
             ImGui.EndChild();
@@ -100,11 +96,66 @@ internal static class SkillMapPopup
         ImGui.PopStyleVar();
     }
 
+    private static void DrawInteractiveMap()
+    {
+        SkillMapCanvas.Canvas.UpdateCanvas(out _);
+        var isAnyItemHovered = SkillMapCanvas.DrawContent(HandleTopicInteraction2, out HexCanvas.Cell mouseCell, _selectedTopics);
+
+        if (_state == States.DraggingItems)
+        {
+            if (_draggedTopic == null || ImGui.IsMouseReleased(ImGuiMouseButton.Left))
+            {
+                _draggedTopic = null;
+                _state = States.Default;
+            }
+            else
+            {
+                var draggedCell = _draggedTopic.Cell;
+                var dX = mouseCell.X - draggedCell.X;
+                var dY = mouseCell.Y - draggedCell.Y;
+
+                var movedSomewhat = dX != 0 || dY != 0;
+
+                if (movedSomewhat)
+                {
+                    var moveCellDelta = new HexCanvas.Cell(dX, dY);
+                    var isBlocked = false;
+                    foreach (var t in _selectedTopics)
+                    {
+                        var newCell = t.Cell + moveCellDelta;
+
+                        if (_blockedCellIds.Contains(newCell.GetHashCode()))
+                        {
+                            isBlocked = true;
+                            break;
+                        }
+                    }
+
+                    if (!isBlocked)
+                    {
+                        foreach (var t in _selectedTopics)
+                        {
+                            t.Cell += moveCellDelta;
+                        }
+                    }
+                }
+            }
+        }
+
+        var dl = ImGui.GetWindowDrawList();
+        if (!isAnyItemHovered && ImGui.IsWindowHovered() && !ImGui.IsMouseDown(ImGuiMouseButton.Right))
+        {
+            HandleFenceSelection();
+            if (_fence.State != SelectionFence.States.Updated)
+                DrawHoveredEmptyCell(dl, mouseCell);
+        }
+    }
+
     private static void HandleFenceSelection()
     {
         var shouldBeActive =
-                ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup)
-                && _state == States.Default;
+            ImGui.IsWindowHovered(ImGuiHoveredFlags.AllowWhenBlockedByPopup)
+            && _state == States.Default;
 
         if (!shouldBeActive)
         {
@@ -121,7 +172,7 @@ internal static class SkillMapPopup
 
             case SelectionFence.States.Updated:
                 HandleSelectionFenceUpdate(_fence.BoundsUnclamped, selectMode);
-                
+
                 break;
 
             case SelectionFence.States.CompletedAsClick:
@@ -139,7 +190,7 @@ internal static class SkillMapPopup
                 throw new ArgumentOutOfRangeException();
         }
     }
-    
+
     private static void HandleSelectionFenceUpdate(ImRect bounds, SelectionFence.SelectModes selectMode)
     {
         //var boundsInScreen = _canvas.InverseTransformRect(bounds);
@@ -152,7 +203,7 @@ internal static class SkillMapPopup
         // Add items
         foreach (var topic in SkillMap.AllTopics)
         {
-            var centerOnScreen = _canvas.ScreenPosFromCell(topic.Cell);
+            var centerOnScreen = SkillMapCanvas.Canvas.ScreenPosFromCell(topic.Cell);
             if (!bounds.Contains(centerOnScreen))
                 continue;
 
@@ -167,14 +218,6 @@ internal static class SkillMapPopup
         }
     }
 
-    
-    
-    
-    
-    
-    
-    
-    
     private enum States
     {
         Default,
@@ -215,7 +258,7 @@ internal static class SkillMapPopup
         FormInputs.AddStringInput("##Topic", ref topic.Title, autoFocus: autoFocus);
         FormInputs.AddVerticalSpace();
 
-        if (FormInputs.AddEnumDropdown(ref topic.TopicType , "##Type"))
+        if (FormInputs.AddEnumDropdown(ref topic.TopicType, "##Type"))
         {
         }
 
@@ -229,77 +272,15 @@ internal static class SkillMapPopup
         ImGui.PopID();
     }
 
-    private static void DrawContent()
-    {
-        var dl = ImGui.GetWindowDrawList();
-
-        var mousePos = ImGui.GetMousePos();
-        var mouseCell = _canvas.CellFromScreenPos(mousePos);
-
-        var isAnyItemHovered = false;
-        foreach (var topic in SkillMap.AllTopics)
-        {
-            isAnyItemHovered |= DrawTopicCell(dl, topic, mouseCell);
-        }
-
-        if (_state == States.DraggingItems)
-        {
-            if (_draggedTopic == null || ImGui.IsMouseReleased(ImGuiMouseButton.Left))
-            {
-                _draggedTopic = null;
-                _state = States.Default;
-            }
-            else
-            {
-                var draggedCell = _draggedTopic.Cell;
-                var dX = mouseCell.X - draggedCell.X;
-                var dY = mouseCell.Y - draggedCell.Y;
-
-                var movedSomewhat = dX != 0 || dY != 0;
-                
-                if (movedSomewhat)
-                {
-                    var moveCellDelta = new HexCanvas.Cell(dX, dY);
-                    var isBlocked = false;
-                    foreach (var t in _selectedTopics)
-                    {
-                        var newCell = t.Cell + moveCellDelta;
-
-                        if (_blockedCellIds.Contains(newCell.GetHashCode()))
-                        {
-                            isBlocked = true;
-                            break;
-                        }
-                    }
-
-                    if (!isBlocked)
-                    {
-                        foreach (var t in _selectedTopics)
-                        {
-                            t.Cell += moveCellDelta;
-                        }
-                    }
-                }
-            }
-        }
-
-        if (!isAnyItemHovered && ImGui.IsWindowHovered() && !ImGui.IsMouseDown(ImGuiMouseButton.Right))
-        {
-            HandleFenceSelection();
-            if(_fence.State != SelectionFence.States.Updated)
-                DrawHoveredEmptyCell(dl, mouseCell);
-        }
-    }
-
     private static Vector2 _dampedHoverCanvasPos;
     private static readonly HashSet<int> _blockedCellIds = new(64);
 
     private static void DrawHoveredEmptyCell(ImDrawListPtr dl, HexCanvas.Cell cell)
     {
-        var hoverCenter = _canvas.ScreenPosFromCell(cell);
+        var hoverCenter = SkillMapCanvas.Canvas.ScreenPosFromCell(cell);
         _dampedHoverCanvasPos = MathUtils.Lerp(_dampedHoverCanvasPos, hoverCenter, 0.5f);
 
-        dl.AddNgonRotated(_dampedHoverCanvasPos, _canvas.HexRadiusOnScreen, UiColors.ForegroundFull.Fade(0.1f), false);
+        dl.AddNgonRotated(_dampedHoverCanvasPos, SkillMapCanvas.Canvas.HexRadiusOnScreen, UiColors.ForegroundFull.Fade(0.1f), false);
 
         var activeTopic = _selectedTopics.Count == 0 ? null : _selectedTopics.First();
 
@@ -329,102 +310,16 @@ internal static class SkillMapPopup
         }
     }
 
-    /// <returns>
-    /// return true if hovered
-    /// </returns>
-    private static bool DrawTopicCell(ImDrawListPtr dl, QuestTopic topic, HexCanvas.Cell cellUnderMouse)
+    private static void HandleTopicInteraction2(QuestTopic topic, bool isSelected)
     {
-        var cell = new HexCanvas.Cell(topic.MapCoordinate);
-
-        var isHovered = ImGui.IsWindowHovered() && !ImGui.IsMouseDown(ImGuiMouseButton.Right) && cell == cellUnderMouse;
-
-        var posOnScreen = _canvas.MapCoordsToScreenPos(topic.MapCoordinate);
-        var radius = _canvas.HexRadiusOnScreen;
-
-        var type = topic.TopicType switch
-                       {
-                           QuestTopic.TopicTypes.Image       => typeof(Texture2D),
-                           QuestTopic.TopicTypes.Numbers     => typeof(float),
-                           QuestTopic.TopicTypes.Command     => typeof(Command),
-                           QuestTopic.TopicTypes.String      => typeof(string),
-                           QuestTopic.TopicTypes.Gpu         => typeof(BufferWithViews),
-                           QuestTopic.TopicTypes.ShaderGraph => typeof(ShaderGraphNode),
-                           _                                 => throw new ArgumentOutOfRangeException()
-                       };
-        
-        var typeColor = TypeUiRegistry.GetTypeOrDefaultColor(type);
-        dl.AddNgonRotated(posOnScreen, radius * 0.95f, typeColor.Fade(isHovered ? 0.3f : 0.15f));
-
-        var isSelected = _selectedTopics.Contains(topic);
-        if (isSelected)
-        {
-            dl.AddNgonRotated(posOnScreen, radius, UiColors.StatusActivated, false);
-        }
-
-        foreach (var unlockTargetId in topic.UnlocksTopics)
-        {
-            if (!SkillMap.TryGetTopic(unlockTargetId, out var targetTopic))
-                continue;
-
-            var targetPos = _canvas.MapCoordsToScreenPos(targetTopic.MapCoordinate);
-            var delta = posOnScreen - targetPos;
-            var direction = Vector2.Normalize(delta);
-            var angle = -MathF.Atan2(delta.X, delta.Y) - MathF.PI / 2;
-            var fadeLine = (delta.Length() / _canvas.Scale.X).RemapAndClamp(0f, 1000f, 1, 0.06f);
-
-            dl.AddLine(posOnScreen - direction * radius * 0.83f,
-                       targetPos + direction * radius * 0.83f,
-                       typeColor.Fade(fadeLine),
-                       2);
-            dl.AddNgonRotated(targetPos + direction * radius * 0.83f,
-                              10 * _canvas.Scale.X,
-                              typeColor.Fade(fadeLine),
-                              true,
-                              3,
-                              startAngle: angle);
-        }
-
-        if (!string.IsNullOrEmpty(topic.Title))
-        {
-            var labelAlpha = _canvas.Scale.X.RemapAndClamp(0.3f, 0.8f, 0, 1);
-            if (labelAlpha > 0.01f)
-            {
-                ImGui.PushFont(_canvas.Scale.X < 0.6f ? Fonts.FontSmall : Fonts.FontNormal);
-                CustomDraw.AddWrappedCenteredText(dl, topic.Title, posOnScreen, 13, UiColors.ForegroundFull.Fade(labelAlpha));
-                ImGui.PopFont();
-
-                if (topic.Status == QuestTopic.Statuses.Locked)
-                {
-                    Icons.DrawIconAtScreenPosition(Icon.Locked, (posOnScreen + new Vector2(-Icons.FontSize / 2, 25f * _canvas.Scale.Y)).Floor(),
-                                                   dl,
-                                                   UiColors.ForegroundFull.Fade(0.4f * labelAlpha));
-                }
-            }
-        }
-
-        if (!isHovered)
-            return isHovered;
-
-        // Mouse interactions ----------------
-
-        ImGui.BeginTooltip();
-        ImGui.TextUnformatted(topic.Title);
-        if (!string.IsNullOrEmpty(topic.Description))
-        {
-            CustomComponents.StylizedText(topic.Description, Fonts.FontSmall, UiColors.TextMuted);
-        }
-
-        ImGui.EndTooltip();
-
-
         switch (_state)
         {
             case States.Default:
                 if (ImGui.IsMouseClicked(ImGuiMouseButton.Left))
                     _state = States.HoldingItem;
-                
+
                 break;
-            
+
             case States.HoldingItem:
                 if (ImGui.IsMouseReleased(ImGuiMouseButton.Left))
                 {
@@ -436,7 +331,7 @@ internal static class SkillMapPopup
                     _selectedTopics.Add(topic);
                     _lastType = topic.TopicType;
                 }
-                
+
                 // Start Dragging
                 if (ImGui.IsMouseDragging(ImGuiMouseButton.Left))
                 {
@@ -445,9 +340,9 @@ internal static class SkillMapPopup
                         _selectedTopics.Clear();
                         _selectedTopics.Add(topic);
                     }
-                    
+
                     _state = States.DraggingItems;
-                    _canvas.InverseTransformPositionFloat(ImGui.GetMousePos());
+                    SkillMapCanvas.Canvas.InverseTransformPositionFloat(ImGui.GetMousePos());
                     _draggedTopic = topic;
 
                     // Initialize blocked cells to avoid collisions
@@ -486,8 +381,6 @@ internal static class SkillMapPopup
 
                 break;
         }
-
-        return isHovered;
     }
 
     private static QuestTopic? _draggedTopic;
@@ -508,6 +401,5 @@ internal static class SkillMapPopup
     private static bool _focusTopicNameInput;
     private static QuestTopic.TopicTypes _lastType = QuestTopic.TopicTypes.Numbers;
     private static States _state;
-    private static readonly HexCanvas _canvas = new();
-    private static readonly SelectionFence _fence = new ();
+    private static readonly SelectionFence _fence = new();
 }

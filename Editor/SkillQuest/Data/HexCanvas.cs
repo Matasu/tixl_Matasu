@@ -3,7 +3,7 @@ using T3.Editor.Gui.Interaction;
 
 namespace T3.Editor.SkillQuest.Data;
 
-public sealed class HexCanvas : ScalableCanvas
+public class HexCanvas : ScalableCanvas
 {
     internal float GridSize = 100;
 

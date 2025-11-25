@@ -48,7 +48,7 @@ public static partial class T3Ui
         ScreenshotWriter.Update();
         RenderProcess.Update();
         SkillQuest.SkillManager.Update();
-        SkillMapPopup.Draw();
+        SkillMapEditor.Draw();
 
         ResourceManager.RaiseFileWatchingEvents();
 
