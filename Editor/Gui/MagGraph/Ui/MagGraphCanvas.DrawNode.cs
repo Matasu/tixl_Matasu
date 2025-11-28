@@ -776,7 +776,13 @@ internal sealed partial class MagGraphView
                     if (isPotentialConnectionEndDropTarget && item != _context.ActiveItem)
                     {
                         fillColor = ColorVariations.Highlight.Apply(type2UiProperties.Color).Fade(Blink);
-                        InputSnapper.RegisterAsPotentialTargetInput(item, center, inputAnchor.SlotId);
+                        var mousePos = ImGui.GetMousePos();
+                        var overlapsOp = new ImRect(pMin, pMax).Contains(mousePos);
+                        if (!overlapsOp)
+                        {
+                            InputSnapper.RegisterAsPotentialTargetInput(item, center, inputAnchor.SlotId);
+                        } 
+                        
                     }
                     else if (inputAnchor.InputLine.ConnectionIn != null)
                     {
