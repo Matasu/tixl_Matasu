@@ -169,7 +169,8 @@ internal static class SymbolUiJson
                 writer.WriteObject(JsonKeys.Label, annotation.Label);
             }
 
-            writer.WriteObject(JsonKeys.Collapsed, annotation.Collapsed);
+            if(annotation.Collapsed)
+                writer.WriteObject(JsonKeys.Collapsed, annotation.Collapsed);
             
             writer.WritePropertyName(JsonKeys.Color);
             _vector4ToJson(writer, annotation.Color.Rgba);
