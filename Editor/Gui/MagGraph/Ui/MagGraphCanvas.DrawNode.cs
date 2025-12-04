@@ -272,6 +272,8 @@ internal sealed partial class MagGraphView
             }
         }
 
+        var hasHiddenMatchingTypes = false;
+
         // Indicate hidden matching inputs...
         if (_context.DraggedPrimaryOutputType != null
             && item.Variant == MagGraphItem.Variants.Operator
@@ -281,7 +283,7 @@ internal sealed partial class MagGraphView
         {
             Debug.Assert(item.Instance != null); // should be true to operator variant
 
-            var hasMatchingTypes = false;
+            //hasHiddenMatchingTypes = true;
             for (var inputIndex = 0; inputIndex < item.Instance.Inputs.Count; inputIndex++)
             {
                 var inputSlot = item.Instance.Inputs[inputIndex];
@@ -289,12 +291,12 @@ internal sealed partial class MagGraphView
                 if (inputSlot.ValueType == _context.DraggedPrimaryOutputType
                     && !inputSlot.HasInputConnections)
                 {
-                    hasMatchingTypes = true;
+                    hasHiddenMatchingTypes = true;
                     break;
                 }
             }
 
-            if (hasMatchingTypes && item != _context.ActiveItem)
+            if (hasHiddenMatchingTypes && item != _context.ActiveItem)
             {
                 var indicatorPos = new Vector2(pMinVisible.X + 5 * CanvasScale, pMaxVisible.Y - 5 * CanvasScale);
 
@@ -777,8 +779,10 @@ internal sealed partial class MagGraphView
                     {
                         fillColor = ColorVariations.Highlight.Apply(type2UiProperties.Color).Fade(Blink);
                         var mousePos = ImGui.GetMousePos();
-                        var overlapsOp = new ImRect(pMin, pMax).Contains(mousePos);
-                        if (!overlapsOp)
+                        var isHovered = new ImRect(pMin + new Vector2(4 * CanvasScale,0), pMax).Contains(mousePos);
+                        var preventInsideSnapping = isHovered && hasHiddenMatchingTypes;
+                        
+                        if (!preventInsideSnapping)
                         {
                             InputSnapper.RegisterAsPotentialTargetInput(item, center, inputAnchor.SlotId);
                         } 
