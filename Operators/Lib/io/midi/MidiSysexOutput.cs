@@ -135,7 +135,9 @@ internal sealed class MidiSysexOutput : Instance<MidiSysexOutput>
             }
 
             _lastErrorMessage = !foundDevice ? $"Can't find MidiDevice {deviceName}" : null;
-            Log.Warning(_lastErrorMessage, this);
+            
+            if(_lastErrorMessage != null)
+                Log.Warning(_lastErrorMessage, this);
             
             _initialized = true;
         }
