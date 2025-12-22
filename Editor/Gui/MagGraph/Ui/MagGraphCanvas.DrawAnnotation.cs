@@ -66,6 +66,7 @@ internal sealed partial class MagGraphView
             var labelPos = positionInScreen; // - new Vector2(2, Fonts.FontNormal.FontSize + 8);
             ImGui.SetCursorScreenPos(labelPos);
             bool isCollapsed = annotation.Collapsed;
+            ImGui.PushID(annotation.Id.GetHashCode());
             if (CustomComponents.ToggleTwoIconsButton(ref isCollapsed, 
                                                       Icon.ChevronDown,
                                                       Icon.ChevronRight,
@@ -106,6 +107,7 @@ internal sealed partial class MagGraphView
                 context.Layout.FlagStructureAsChanged();
                 annotation.Collapsed = !annotation.Collapsed;
             }
+            ImGui.PopID();
         }
 
         

@@ -397,7 +397,10 @@ internal sealed partial class MagGraphView : ScalableCanvas, IGraphView
 
         foreach (var magAnnotation in _context.Layout.Annotations.Values)
         {
-            var annotationArea = new ImRect(magAnnotation.PosOnCanvas, magAnnotation.PosOnCanvas + magAnnotation.Size);
+            var annotationArea = magAnnotation.Annotation.Collapsed
+                                     ? new ImRect(magAnnotation.PosOnCanvas, magAnnotation.PosOnCanvas + new Vector2(magAnnotation.Size.X, MagGraphItem.GridSize.Y))
+                                     : new ImRect(magAnnotation.PosOnCanvas, magAnnotation.PosOnCanvas + magAnnotation.Size);
+                
             if (!boundsInCanvas.Contains(annotationArea))
                 continue;
 
