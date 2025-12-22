@@ -14,6 +14,14 @@ internal sealed class SkillMapCanvas : HexCanvas
 {
     public bool DrawContent(HandleTopicInteraction? topicAction, out HexCanvas.Cell mouseCell, HashSet<QuestTopic> selection)
     {
+        if (!ImGui.IsWindowAppearing())
+        {
+            if (_focusCanvasAreaRequested)
+            {
+                FitAreaOnCanvas(_focusAreaOnCanvas);
+                _focusCanvasAreaRequested = false;
+            }
+        }
         UpdateCanvas(out _);
 
         var dl = ImGui.GetWindowDrawList();
@@ -54,8 +62,12 @@ internal sealed class SkillMapCanvas : HexCanvas
         }
 
         canvasArea.Expand(padding);
-        FitAreaOnCanvas(canvasArea);
+        _focusAreaOnCanvas = canvasArea;
+        _focusCanvasAreaRequested = true;
     }
+
+    private bool _focusCanvasAreaRequested;
+    private ImRect _focusAreaOnCanvas;
 
     /// <returns>
     /// return true if hovered
