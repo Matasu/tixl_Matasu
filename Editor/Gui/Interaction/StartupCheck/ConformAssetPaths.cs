@@ -2,6 +2,8 @@
 using T3.Core.Model;
 using T3.Core.Operator;
 using T3.Core.Operator.Slots;
+using T3.Core.Resource;
+using T3.Core.Utils;
 using T3.Editor.Gui.InputUi.SimpleInputUis;
 using T3.Editor.UiModel;
 using T3.Editor.UiModel.InputsAndTypes;
@@ -108,13 +110,34 @@ internal static class ConformAssetPaths
                 break;
             }
             case StringInputUi.UsageType.DirectoryPath:
-                Log.Warning($"{symbol.SymbolPackage.Name}: {stringValue.Value} ignoring directory path...");
+                if (TryConvertResourceFolderPath(stringValue.Value, symbol, out var convertedFolderPath, out var absolutePath))
+                {
+                    {
+                        Log.Debug($"{symbol}.{inputUi.InputDefinition.Name} Folder:  {symbol.SymbolPackage.Name}: {stringValue.Value} -> {convertedFolderPath}");
+                    }
+                    
+                    stringValue.Value =convertedFolderPath;
+                }
+                // else
+                // {
+                //     Log.Warning($"Can't convert folder path: {symbol.SymbolPackage.Name}: {symbol}.{inputUi.InputDefinition.Name}  '{stringValue.Value}'");
+                // }
+
+                if (!string.IsNullOrEmpty(absolutePath))
+                {
+                    var exists = Directory.Exists(absolutePath);
+                    if (!exists)
+                    {
+                        Log.Warning($"Folder not found: {symbol}.{inputUi.InputDefinition.Name}: '{absolutePath}'");
+                    }
+                }
+                
                 break;
         }
     }
 
     private static HashSet<string> IgnoredFiles => ["shadertoolsconfig.json"]; 
-    //
+    
     // private static bool TryConvertResourcePath2(string path, Symbol symbol, out string newPath)
     // {
     //     newPath = path;
@@ -188,11 +211,65 @@ internal static class ConformAssetPaths
         var colon = path.IndexOf(':');
         return colon == 1;
     }
+    
 
+    private static bool TryConvertResourceFolderPath(string path, Symbol symbol, out string newPath, out string absolutePath)
+    {
+        absolutePath = string.Empty;
+        
+        path = path.Replace('\\', '/');
+        newPath = path;
+        
+        if (string.IsNullOrWhiteSpace(path)) return false;
+        
+        var colon = path.IndexOf(':');
+        if (colon != -1)
+        {
+            if (colon <= 1)
+                return false;
+
+            var symbolPrefix = path[..colon];
+            var rest = path[(colon + 1)..];
+
+            var mismatch = symbolPrefix != symbol.SymbolPackage.Name; // TODO:
+            absolutePath = $"{symbol.SymbolPackage.ResourcesFolder}/{rest}";
+            return false;
+        }
+
+        if (!path.EndsWith("/"))
+        {
+            path += '/';
+        }
+        var pathSpan = path.AsSpan();
+
+        var firstSlash = pathSpan.IndexOf('/');
+        if (firstSlash == -1)
+        {
+            newPath= $"{symbol.SymbolPackage.Name}:{newPath}";
+            absolutePath = $"{symbol.SymbolPackage.ResourcesFolder}/{newPath}";
+            return true;
+        }
+
+        var isRooted = firstSlash == 0;
+        var nonRooted = isRooted ? pathSpan[1..] : pathSpan;
+        
+        // Skip "Resources" prefix
+        var resourcesPrefix = "Resources/";
+        if (nonRooted.StartsWith(resourcesPrefix))
+        {
+            nonRooted = nonRooted[resourcesPrefix.Length..];
+        }
+        
+        absolutePath = $"{symbol.SymbolPackage.ResourcesFolder}/{nonRooted}";
+        newPath = $"{symbol.SymbolPackage.Name}:{nonRooted}";
+        
+        return true;
+    }
     
     private static bool TryConvertResourcePathFuzzy(string path, Symbol symbol, out string newPath)
     {
         newPath = path;
+        
         if (string.IsNullOrWhiteSpace(path)) return false;
 
         // 1. Ignore valid URIs and Absolute Paths

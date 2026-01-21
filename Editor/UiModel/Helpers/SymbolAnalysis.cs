@@ -280,6 +280,7 @@ internal static class SymbolAnalysis
         {
             "Types",
             "Lib",
+            "Examples",
             root.SymbolPackage.RootNamespace,
         };
 
