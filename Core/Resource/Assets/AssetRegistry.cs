@@ -41,7 +41,7 @@ public static class AssetRegistry
                 absolutePath = asset.FileSystemInfo.FullName;
                 resourceContainer = null;
 
-                foreach (var c in ResourceManager.SharedShaderPackages)
+                foreach (var c in ResourceManager.SharedResourcePackages)
                 {
                     if (c.Id != asset.PackageId) continue;
                     resourceContainer = c;
@@ -93,7 +93,7 @@ public static class AssetRegistry
         var packageName = span[..projectSeparator];
         var localPath = span[(projectSeparator + 1)..];
 
-        var packages = consumer?.AvailableResourcePackages ?? ResourceManager.SharedShaderPackages;
+        var packages = consumer?.AvailableResourcePackages ?? ResourceManager.SharedResourcePackages;
         if (packages.Count == 0)
         {
             if(logWarnings)
