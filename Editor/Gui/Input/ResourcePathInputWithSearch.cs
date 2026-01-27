@@ -195,7 +195,9 @@ internal static class AssetInputWithTypeAheadSearch
 
                 var lastPos = ImGui.GetCursorPos();
                 ImGui.Selectable($"##{asset}", isSelected, ImGuiSelectableFlags.None);
-                var isItemHovered = new ImRect(ImGui.GetItemRectMin(), ImGui.GetItemRectMax()).Contains(ImGui.GetMousePos());
+                var isItemHovered = new ImRect(ImGui.GetItemRectMin(), ImGui.GetItemRectMax()).Contains(ImGui.GetMousePos())
+                    && ImRect.RectWithSize(ImGui.GetWindowPos(), ImGui.GetWindowSize() ).Contains(ImGui.GetMousePos());
+                
                 var keepNextPos = ImGui.GetCursorPos();
 
                 isSelected = asset.Address == searchString;
