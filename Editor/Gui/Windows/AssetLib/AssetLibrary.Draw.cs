@@ -77,14 +77,6 @@ internal sealed partial class AssetLibrary
         }
         else
         {
-            var hasMatches = folder.MatchingAssetCount > 0;
-            var isSearching = !string.IsNullOrEmpty(_state.SearchString);
-            var isFiltering = _state.CompatibleExtensionIds.Count > 0 || isSearching;
-            var isCurrentCompositionPackage = _state.Composition?.Symbol.SymbolPackage.Name == strId;
-
-            if (isSearching && !hasMatches)
-                return;
-
             // Open main folders automatically
             if (!_state.OpenedExamplesFolderOnce
                 && strId == FileLocations.ExamplesPackageName)
@@ -99,6 +91,15 @@ internal sealed partial class AssetLibrary
                 ImGui.SetNextItemOpen(true);
                 _state.OpenedProjectsFolderOnce = true;
             }
+            
+            var hasMatches = folder.MatchingAssetCount > 0;
+            var isSearching = !string.IsNullOrEmpty(_state.SearchString);
+            var isFiltering = _state.CompatibleExtensionIds.Count > 0 || isSearching;
+            var isCurrentCompositionPackage = _state.Composition?.Symbol.SymbolPackage.Name == strId;
+
+            if (isSearching && !hasMatches)
+                return;
+
 
             // Draw 
             ImGui.SetNextItemWidth(10);
@@ -108,20 +109,21 @@ internal sealed partial class AssetLibrary
 
             ImGui.PushStyleColor(ImGuiCol.Text, textMutedRgba.Rgba);
 
-            _state.TreeHandler.UpdateForNode(folder.HashCode);
 
             var containsTargetFile = ContainsTargetFile(folder);
             if (_expandToFileTriggered && containsTargetFile)
             {
                 ImGui.SetNextItemOpen(true);
             }
+            
+            _state.TreeHandler.UpdateForNode(folder.HashCode);
 
             // Draw the actual folder item
             ImGui.PushFont(isCurrentCompositionPackage ? Fonts.FontBold : Fonts.FontNormal);
             var isOpen = ImGui.TreeNodeEx(strId);
             ImGui.PopFont();
 
-            DrawSearchMatchUnderline(_state.SearchString, strId, Vector2.Zero);
+            CustomComponents.DrawSearchMatchUnderline(_state.SearchString, strId, ImGui.GetItemRectMin());
             
             // Show filter count
             if (isFiltering && hasMatches)
@@ -197,29 +199,6 @@ internal sealed partial class AssetLibrary
                 }
             }
         }
-    }
-
-    private static void DrawSearchMatchUnderline(string searchString, ReadOnlySpan<char> strId, Vector2 offset)
-    {
-        if (string.IsNullOrEmpty(searchString)) 
-            return;
-        
-        var start = strId.IndexOf(searchString, StringComparison.OrdinalIgnoreCase);
-        if (start == -1) 
-            return;
-        
-        var span = strId.Slice(start, searchString.Length);
-        var sizeMatch = ImGui.CalcTextSize(span);
-
-        var sizeBefore = start > 0 ? ImGui.CalcTextSize(strId[..start])
-                             : Vector2.Zero;
-                    
-        var fontSize = ImGui.GetFontSize();
-        var min = ImGui.GetItemRectMin() 
-                  + offset
-                  + new Vector2(fontSize + sizeBefore.X, fontSize) ;
-                    
-        ImGui.GetWindowDrawList().AddLine(min, min + new Vector2(sizeMatch.X,0), UiColors.StatusAttention);
     }
 
     /** Extracted to separate method to limit hot code reloading block from stack alloc **/
@@ -306,8 +285,9 @@ internal sealed partial class AssetLibrary
                     ApplyResourcePath(asset, stringInput);
                 }
             }
-            
-            DrawSearchMatchUnderline(_state.SearchString, asset.FileSystemInfo?.Name, new Vector2(4,3));
+
+            CustomComponents.DrawSearchMatchUnderline(_state.SearchString, asset.FileSystemInfo?.Name, 
+                                                      ImGui.GetItemRectMin() + new Vector2(4,3));
 
             if (isSelected && !ImGui.IsItemVisible() && _state.HasActiveInstanceChanged)
             {

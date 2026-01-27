@@ -61,6 +61,7 @@ internal sealed partial class AssetLibrary : Window
 
         _state.TreeHandler.Reset();
         _state.SearchStringChanged = false;
+        _state.FilteringNeedsUpdate = false;
         _state.LastFileWatcherState = ResourceFileWatcher.FileStateChangeCounter;
 
         _state.AllAssets.Clear();
