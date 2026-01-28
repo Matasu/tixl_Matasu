@@ -348,6 +348,6 @@ internal static partial class CustomComponents
                   offset
                   + new Vector2( sizeBefore.X, fontSize) ;
                     
-        ImGui.GetWindowDrawList().AddLine(min, min + new Vector2(sizeMatch.X,0), UiColors.StatusAttention);
+        ImGui.GetWindowDrawList().AddLine(min, min + new Vector2(sizeMatch.X,0), UiColors.BackgroundActive);
     }
 }
