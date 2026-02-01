@@ -1,6 +1,5 @@
 #nullable enable
 using System.IO;
-using System.Runtime.CompilerServices;
 using ImGuiNET;
 using T3.Core.DataTypes.Vector;
 using T3.Core.Operator;
@@ -73,8 +72,8 @@ internal sealed partial class AssetLibrary
 
     private void DrawFolder(AssetFolder folder)
     {
-        var strId = folder.Name.AsSpan();
-        if (strId == AssetFolder.RootNodeId)
+        var folderName = folder.Name.AsSpan();
+        if (folderName == AssetFolder.RootNodeId)
         {
             DrawFolderContent(folder);
         }
@@ -82,14 +81,14 @@ internal sealed partial class AssetLibrary
         {
             // Open main folders automatically
             if (!_state.OpenedExamplesFolderOnce
-                && strId == FileLocations.ExamplesPackageName)
+                && folderName == FileLocations.ExamplesPackageName)
             {
                 ImGui.SetNextItemOpen(true);
                 _state.OpenedExamplesFolderOnce = true;
             }
 
             if (!_state.OpenedProjectsFolderOnce
-                && strId == ProjectView.Focused?.RootInstance.Symbol.SymbolPackage.Name)
+                && folderName == ProjectView.Focused?.RootInstance.Symbol.SymbolPackage.Name)
             {
                 ImGui.SetNextItemOpen(true);
                 _state.OpenedProjectsFolderOnce = true;
@@ -98,12 +97,12 @@ internal sealed partial class AssetLibrary
             var hasMatches = folder.MatchingAssetCount > 0;
             var isSearching = !string.IsNullOrEmpty(_state.SearchString);
             var isFiltering = _state.CompatibleExtensionIds.Count > 0 || isSearching;
-            var isCurrentCompositionPackage = _state.Composition?.Symbol.SymbolPackage.Name == strId;
+            var isCurrentCompositionPackage = _state.Composition?.Symbol.SymbolPackage.Name == folderName;
 
             if (isSearching && !hasMatches)
                 return;
 
-            // Draw 
+            // Prepare drawing
             ImGui.SetNextItemWidth(10);
 
             var textMutedRgba = (isFiltering && !hasMatches) ? UiColors.TextMuted : UiColors.Text;
@@ -121,12 +120,14 @@ internal sealed partial class AssetLibrary
 
             // Draw the actual folder item
             ImGui.PushFont(isCurrentCompositionPackage ? Fonts.FontBold : Fonts.FontNormal);
-            var isOpen = ImGui.TreeNodeEx(strId);
+            var isOpen = ImGui.TreeNodeEx(folderName);
             ImGui.PopFont();
 
-            CustomComponents.DrawSearchMatchUnderline(_state.SearchString, strId,
+            CustomComponents.DrawSearchMatchUnderline(_state.SearchString, folderName,
                                                       ImGui.GetItemRectMin()
                                                       + new Vector2(ImGui.GetFontSize(), 0));
+
+            HandleDropOntoFolder(folder);
 
             // Show filter count
             if (isFiltering && hasMatches)
@@ -201,6 +202,31 @@ internal sealed partial class AssetLibrary
                     ImGui.PopID();
                 }
             }
+        }
+    }
+
+    private static void HandleDropOntoFolder(AssetFolder folder)
+    {
+        var dropFilesResult = DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.ExternalFile, out var data, () =>
+                                                                          {
+                                                                              CustomComponents.BeginTooltip();
+                                                                              ImGui.TextUnformatted("Import files to here...");
+                                                                              CustomComponents.EndTooltip();
+                                                                          });
+
+        if (dropFilesResult != DragAndDropHandling.DragInteractionResult.Dropped || data == null) 
+            return;
+        
+        if (!AssetRegistry.TryResolveAddress(folder.Address, null, out _, out var package,isFolder:true))
+        {
+            Log.Warning($"Can't resolve address ({folder.Address}) for target folder {folder}?");
+            return;
+        }
+            
+        var filePaths = data.Split("|");
+        foreach (var path in filePaths)
+        {
+            FileImport.TryImportDroppedFile(path,package, folder.Name, out _);
         }
     }
 
@@ -345,7 +371,7 @@ internal sealed partial class AssetLibrary
                                                                            CoreUi.Instance.OpenWithDefaultApplication(absolutePath);
                                                                        }
                                                                    }
-                                                                   
+
                                                                    if (ImGui.MenuItem("Reveal in Explorer"))
                                                                    {
                                                                        var absolutePath = asset.FileSystemInfo?.FullName;
@@ -353,7 +379,8 @@ internal sealed partial class AssetLibrary
                                                                        {
                                                                            CoreUi.Instance.OpenWithDefaultApplication(absolutePath);
                                                                        }
-                                                                       var folder =  Path.GetDirectoryName(absolutePath);
+
+                                                                       var folder = Path.GetDirectoryName(absolutePath);
                                                                        if (!string.IsNullOrEmpty(folder))
                                                                        {
                                                                            try
@@ -364,7 +391,7 @@ internal sealed partial class AssetLibrary
                                                                            {
                                                                                Log.Warning($"Failed to get directory for {folder} {e.Message}");
                                                                            }
-                                                                       }                                                                       
+                                                                       }
                                                                    }
                                                                },
                                                 title: asset.FileSystemInfo?.Name,
@@ -375,11 +402,10 @@ internal sealed partial class AssetLibrary
             var hasUses = AssetRegistry.ReferencesForAssetId.TryGetValue(asset.Id, out var uses);
             if (!hasUses)
             {
-                var pos = new Vector2(ImGui.GetWindowPos().X, cursorScreenPos.Y + (ImGui.GetFrameHeight() - 16 + 10)/2);
+                var pos = new Vector2(ImGui.GetWindowPos().X, cursorScreenPos.Y + (ImGui.GetFrameHeight() - 16 + 10) / 2);
                 Icons.DrawIconAtScreenPosition(Icon.Sleeping, pos, ImGui.GetWindowDrawList(), UiColors.Text.Fade(0.4f));
             }
 
-            
             if (ImGui.IsItemHovered())
             {
                 ImGui.SetMouseCursor(ImGuiMouseCursor.ResizeAll); // Indicator for drag
@@ -393,15 +419,14 @@ internal sealed partial class AssetLibrary
                                    : absolutePath;
 
                     ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, new Vector2(4, 4) * T3Ui.UiScaleFactor);
-                    
 
                     if (ImGui.BeginTooltip())
                     {
-                        CustomComponents.StylizedText($"{StringUtils.GetReadableFileSize(asset.FileSize)}  / {asset.FileSystemInfo?.LastWriteTime}", Fonts.FontSmall, UiColors.TextMuted);
+                        CustomComponents.StylizedText($"{StringUtils.GetReadableFileSize(asset.FileSize)}  / {asset.FileSystemInfo?.LastWriteTime}",
+                                                      Fonts.FontSmall, UiColors.TextMuted);
                         FormInputs.AddVerticalSpace(2);
                         CustomComponents.StylizedText($"in {path}", Fonts.FontSmall, UiColors.TextMuted);
-                        
-                        
+
                         FormInputs.AddVerticalSpace();
                         if (hasUses && uses != null)
                         {
@@ -414,15 +439,15 @@ internal sealed partial class AssetLibrary
                         else
                         {
                             ImGui.TextUnformatted("""
-                                                   Not directly used in any parameter. 
-                                                   (Other users are possible...)
-                                                   """);
+                                                  Not directly used in any parameter. 
+                                                  (Other users are possible...)
+                                                  """);
                         }
-                        
+
                         //ImGui.PopTextWrapPos();
                         ImGui.EndTooltip();
                     }
-                    
+
                     ImGui.PopStyleVar();
                 }
             }
@@ -456,23 +481,23 @@ internal sealed partial class AssetLibrary
                 ImGui.TextUnformatted("??? child not found");
                 return;
             }
-            
-            ImGui.TextColored(UiColors.TextMuted,$"{symbol.Namespace}.");
+
+            ImGui.TextColored(UiColors.TextMuted, $"{symbol.Namespace}.");
             ImGui.SameLine();
             ImGui.TextUnformatted($"{symbol.Name}");
             ImGui.SameLine();
-            ImGui.TextColored(UiColors.TextMuted,$" » {symbolChild.Symbol.Name}");
+            ImGui.TextColored(UiColors.TextMuted, $" » {symbolChild.Symbol.Name}");
             return;
         }
 
         var inputDefinition = symbol.InputDefinitions.FirstOrDefault(i => i.Id == reference.InputId);
         var inputName = inputDefinition?.Name ?? "???";
-        ImGui.TextColored(UiColors.TextMuted,$"{symbol.Namespace}.");
+        ImGui.TextColored(UiColors.TextMuted, $"{symbol.Namespace}.");
         ImGui.SameLine();
         ImGui.TextUnformatted($"{symbol.Name}");
         ImGui.SameLine();
-        
-        ImGui.TextColored(UiColors.TextMuted,$".{inputName} (Default)");
+
+        ImGui.TextColored(UiColors.TextMuted, $".{inputName} (Default)");
     }
 
     private static bool ButtonWithIcon(string id, string label, Icon icon, Color iconColor, Color textColor, bool isActive)

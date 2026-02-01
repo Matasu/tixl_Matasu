@@ -545,7 +545,9 @@ internal sealed class GraphView : ScalableCanvas, IGraphView
         ImGui.SetCursorPos(Vector2.Zero);
         ImGui.InvisibleButton("## drop", ImGui.GetWindowSize());
 
-        if (!DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.Symbol, out var payload, out var result))
+
+        var result = DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.Symbol, out var payload);
+        if (result == DragAndDropHandling.DragInteractionResult.None)
             return;
         
         if (!Guid.TryParse(payload, out var guid))

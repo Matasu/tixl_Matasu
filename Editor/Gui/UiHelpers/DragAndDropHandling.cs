@@ -1,11 +1,13 @@
 ﻿#nullable enable
-using System.Diagnostics.CodeAnalysis;
 using System.Runtime.InteropServices;
 using ImGuiNET;
 using T3.Core.DataTypes.Vector;
 
 namespace T3.Editor.Gui.UiHelpers;
 
+/// <summary>
+/// Implements UI and interaction for dragging or dropping various elements onto imgui items. 
+/// </summary>
 internal static class DragAndDropHandling
 {
     /// <summary>
@@ -79,46 +81,44 @@ internal static class DragAndDropHandling
     /// <returns>
     /// True if dropped
     /// </returns>
-    internal static bool TryHandleDropOnItem(DragTypes dragType, out string? data, 
-                                             out DragInteractionResult result, 
-                                             Action? drawTooltip = null)
+    internal static DragInteractionResult TryHandleDropOnItem(DragTypes dragType, out string? data, Action? drawTooltip = null)
     {
         data = string.Empty;
-        result = DragInteractionResult.None;
-
         if (_activeDragType != dragType)
-            return false;
+            return DragInteractionResult.None;
 
         if (!IsDragging && !_externalDropJustHappened)
         {
             _activeDragType = DragTypes.None;
-            return false;
+            return DragInteractionResult.None;
         }
-
-        var isHovered = ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem);
 
         var min = ImGui.GetItemRectMin();
         var max = ImGui.GetItemRectMax();
+        
+        // We can't rely on imgui hovered after drop from external
+        var isHovered = _externalDropJustHappened
+                            ? new ImRect(min, max).Contains(ImGui.GetMousePos())
+                            : ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenBlockedByActiveItem);
+
         var color = Color.Orange.Fade(isHovered ? 1f : 0.5f);
         var thickness = isHovered ? 2f : 1f;
 
         ImGui.GetWindowDrawList().AddRect(min, max, color, 0, ImDrawFlags.None, thickness);
 
-        if (!isHovered && !_externalDropJustHappened)
-            return false;
+        if (!isHovered)
+            return DragInteractionResult.None;
 
-        result = DragInteractionResult.Hovering;
+        var result = DragInteractionResult.Hovering;
         data = _dataString;
 
         drawTooltip?.Invoke();
 
         if (_externalDropJustHappened)
         {
-
             data = _dataString;
-            result = DragInteractionResult.Dropped;
             _stopRequested = true;
-            return true;
+            return DragInteractionResult.Dropped;
         }
 
         if (ImGui.BeginDragDropTarget())
@@ -128,7 +128,7 @@ internal static class DragAndDropHandling
             {
                 StopDragging();
                 ImGui.EndDragDropTarget();
-                return false;
+                return DragInteractionResult.None;
             }
 
             var payload = ImGui.AcceptDragDropPayload(dragType.ToString());
@@ -161,7 +161,7 @@ internal static class DragAndDropHandling
             ImGui.EndDragDropTarget();
         }
 
-        return true;
+        return result;
     }
 
     internal enum DragInteractionResult
@@ -203,7 +203,7 @@ internal static class DragAndDropHandling
 
     private static bool _externalDropJustHappened; // New flag
     private static IntPtr _dataPtr = new(0);
-    private static string? _dataString = null;
+    private static string? _dataString;
     private static bool _stopRequested;
 
     internal enum DragTypes

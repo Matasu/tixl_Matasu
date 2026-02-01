@@ -1,22 +1,18 @@
 ﻿#nullable enable
 using System.Diagnostics.CodeAnalysis;
-using System.IO;
 using ImGuiNET;
 using T3.Core.Model;
 using T3.Core.Operator;
 using T3.Core.Operator.Slots;
-using T3.Core.Resource;
 using T3.Core.Resource.Assets;
 using T3.Editor.Gui.MagGraph.Model;
 using T3.Editor.Gui.MagGraph.States;
 using T3.Editor.Gui.Styling;
 using T3.Editor.Gui.UiHelpers;
-using T3.Editor.Gui.Windows.AssetLib;
 using T3.Editor.UiModel;
 using T3.Editor.UiModel.Helpers;
 using T3.Editor.UiModel.InputsAndTypes;
 using T3.Editor.UiModel.Modification;
-using T3.Editor.UiModel.ProjectHandling;
 
 namespace T3.Editor.Gui.MagGraph.Ui;
 
@@ -44,7 +40,7 @@ internal static class DropHandling
 
     private static void HandleDropAsset(GraphUiContext context)
     {
-        DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.FileAsset, out var address, out var assetResult);
+        var assetResult= DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.FileAsset, out var address);
 
         if (assetResult != DragAndDropHandling.DragInteractionResult.Hovering
             && assetResult != DragAndDropHandling.DragInteractionResult.Dropped
@@ -68,7 +64,7 @@ internal static class DropHandling
 
     private static bool HandleDropSymbol(GraphUiContext context)
     {
-        DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.Symbol, out var data, out var result);
+        var result=DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.Symbol, out var data);
 
         if (result != DragAndDropHandling.DragInteractionResult.Dropped)
             return false;
@@ -89,7 +85,7 @@ internal static class DropHandling
         if (package == null)
             return false;
 
-        DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.ExternalFile, out var data, out var result);
+        var result=DragAndDropHandling.TryHandleDropOnItem(DragAndDropHandling.DragTypes.ExternalFile, out var data);
 
         var packageResourcesFolder = package.AssetsFolder;
 
@@ -120,7 +116,7 @@ internal static class DropHandling
 
         foreach (var filepath in filePaths)
         {
-            if (!TryImportDroppedFile(filepath, package, out var asset))
+            if (!FileImport.TryImportDroppedFile(filepath, package,null, out var asset))
                 continue;
 
             if (!CreateAssetOperatorOnGraph(context, asset, dropOffset))
@@ -129,85 +125,6 @@ internal static class DropHandling
             dropOffset += new Vector2(20, 100);
         }
 
-        return false;
-    }
-
-    /// <summary>
-    /// Import an external file as <see cref="Asset"/> asset or return existing.
-    /// </summary>
-    private static bool TryImportDroppedFile(string sourcePath, SymbolPackage package, [NotNullWhen(true)] out Asset? asset)
-    {
-        asset = null;
-        if (!Path.Exists(sourcePath))
-            return false;
-
-        var fileName = Path.GetFileName(sourcePath);
-
-        if (!AssetType.TryGetForFilePath(sourcePath, out var assetType, out _))
-        {
-            Log.Warning($"Unsupported asset type {assetType}");
-            return false;
-        }
-
-        var existsInSubFolder = false;
-        var existsInPackageRootFolder = false;
-
-        var destFilepath = string.Empty;
-
-        foreach (var subFolder in assetType.Subfolders)
-        {
-            destFilepath = Path.Combine(package.AssetsFolder, subFolder, fileName);
-            if (!File.Exists(destFilepath))
-                continue;
-
-            existsInSubFolder = true;
-            break;
-        }
-
-        if (!existsInSubFolder)
-        {
-            destFilepath = Path.Combine(package.AssetsFolder, fileName);
-            existsInPackageRootFolder = File.Exists(destFilepath);
-        }
-
-        if (!existsInSubFolder && !existsInPackageRootFolder)
-        {
-            destFilepath = assetType.Subfolders.Length > 0
-                               ? Path.Combine(package.AssetsFolder, assetType.Subfolders[0], fileName)
-                               : Path.Combine(package.AssetsFolder, fileName);
-
-            // Copy to project first...
-            try
-            {
-                File.Copy(sourcePath, destFilepath);
-            }
-            catch (Exception)
-            {
-                Log.Warning($"Failed to copy to {destFilepath}");
-                return false;
-            }
-
-            Log.Debug($"Imported {fileName} to {package.AssetsFolder}");
-
-            FileInfo? destFileInfo;
-            try
-            {
-                destFileInfo = new FileInfo(destFilepath);
-            }
-            catch (Exception e)
-            {
-                Log.Warning($"Failed to get fileinfo after dropping to {destFilepath} " + e.Message);
-                return false;
-            }
-
-            asset = AssetRegistry.RegisterPackageEntry(destFileInfo, package, false);
-            return true;
-        }
-
-        if (AssetRegistry.TryToGetAssetFromFilepath(destFilepath, out asset))
-            return true;
-
-        Log.Warning($"Existing file not registered as asset? {destFilepath}");
         return false;
     }
 

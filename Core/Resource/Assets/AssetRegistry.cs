@@ -154,8 +154,6 @@ public static class AssetRegistry
         if (!Directory.Exists(root)) return;
 
         var di = new DirectoryInfo(root);
-        var packageId = package.Id;
-        var packageAlias = package.Name;
 
         RegisterPackageEntry(di, package, isDirectory: true);
 
@@ -188,7 +186,7 @@ public static class AssetRegistry
     }
     
 
-    public static Asset RegisterPackageEntry(FileSystemInfo info, SymbolPackage package, bool isDirectory)
+    public static Asset RegisterPackageEntry(FileSystemInfo info, IResourcePackage package, bool isDirectory)
     {
         info.Refresh();
         
@@ -352,7 +350,7 @@ public static class AssetRegistry
                            ? relativePath 
                            : relativePath[lastSlash..];
 
-        if (_assetsMatchingFilenames.TryRemove(filename.ToString(), out _))
+        if (_assetsMatchingFilenames.TryRemove(filename, out _))
         {
             Log.Debug($"Removed {address} from file matches.");
         }
