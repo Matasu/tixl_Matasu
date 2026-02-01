@@ -17,7 +17,7 @@ namespace T3.Editor.Gui.UiHelpers;
 /// </summary>
 internal static class FilePickingUi
 {
-    public static InputEditStateFlags DrawTypeAheadSearch(FileOperations.FilePickerTypes pickMode, string? fileFilter, ref string? filterAndSelectedPath)
+    public static InputEditStateFlags DrawTypeAheadSearch(FileOperations.FilePickerTypes pickMode, string? fileFilter, ref string? filterAndSelectedPath, bool showAssetFolderToggle = true)
     {
         ImGui.SetNextItemWidth(-70 * T3Ui.UiScaleFactor);
 
@@ -67,12 +67,14 @@ internal static class FilePickingUi
             ImGui.EndTooltip();
         }
 
-        ImGui.SameLine();
-
-        if (ImGui.Button("...##fileSelector"))
+        if (showAssetFolderToggle)
         {
-            
-            WindowManager.ToggleInstanceVisibility<AssetLibrary>();
+            ImGui.SameLine();
+
+            if (ImGui.Button("...##fileSelector"))
+            {
+                WindowManager.ToggleInstanceVisibility<AssetLibrary>();
+            }
         }
 
         return inputEditStateFlags;
