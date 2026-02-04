@@ -6,9 +6,8 @@ using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using T3.Core.Logging;
 using T3.Core.Model;
-using T3.Core.Operator;
+
 using T3.Core.Resource.Assets;
-using T3.Core.Stats;
 using T3.Core.Utils;
 
 namespace T3.Core.Resource;
@@ -18,7 +17,7 @@ public sealed class FileResource: IResource
     public Asset Asset { get; private set; }
     
     // Delegate to the asset for convenience
-    public string AbsolutePath => Asset.FileSystemInfo?.FullName ?? string.Empty;
+    public string AbsolutePath => Asset.FullPath;
     public IResourcePackage? ResourcePackage => Asset.Package; // Resolved via Registry
     
     IResourcePackage? IResource.OwningPackage => ResourcePackage;
@@ -170,7 +169,7 @@ public sealed class FileResource: IResource
         }
 
         // Use the absolute path from the Asset for the OS-level file watcher hook
-        var path = asset.FileSystemInfo?.FullName;
+        var path = asset.FullPath;
         if (!string.IsNullOrEmpty(path))
         {
             resource.ResourcePackage?.FileWatcher?.AddFileHook(path, resource._onResourceChanged);
@@ -192,7 +191,7 @@ public sealed class FileResource: IResource
             }
         }
 
-        var path = asset.FileSystemInfo?.FullName;
+        var path = asset.FullPath.ToForwardSlashes();
         if (!string.IsNullOrEmpty(path))
         {
             resource.ResourcePackage?.FileWatcher?.RemoveFileHook(path, resource._onResourceChanged);
