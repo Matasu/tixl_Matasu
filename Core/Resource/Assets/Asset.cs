@@ -7,7 +7,8 @@ using T3.Core.Utils;
 namespace T3.Core.Resource.Assets;
 
 /// <summary>
-/// Defines a potential file resource in a SymbolProject.
+/// Defines a potential file resource in a SymbolPackage. All files in a Packages' Assets/ folder will
+/// be collected on startup and registered on startup.
 /// </summary>
 public sealed class Asset
 {

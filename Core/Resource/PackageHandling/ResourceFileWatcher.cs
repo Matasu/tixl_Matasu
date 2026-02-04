@@ -11,13 +11,16 @@ using T3.Core.Utils;
 
 namespace T3.Core.Resource;
 
+/// <summary>
+/// Handles events for loaded resources files and forwards them to 
+/// </summary>
 public sealed class ResourceFileWatcher : IDisposable
 {
     public ResourceFileWatcher(string watchedFolder)
     {
         Directory.CreateDirectory(watchedFolder);
-        _watchedDirectory = watchedFolder.ToForwardSlashes();
-        ResourceManager.RegisterWatcher(this);
+        _watchedDirectory = watchedFolder; 
+        ResourcePackageManager.RegisterWatcher(this);
     }
 
     public void Dispose()
@@ -25,7 +28,7 @@ public sealed class ResourceFileWatcher : IDisposable
         DisposeFileWatcher(ref _fsWatcher);
 
         _fileChangeActions.Clear();
-        ResourceManager.UnregisterWatcher(this);
+        ResourcePackageManager.UnregisterWatcher(this);
     }
 
     internal void AddFileHook(string filepath, FileWatcherAction action)
@@ -35,7 +38,7 @@ public sealed class ResourceFileWatcher : IDisposable
 
         ArgumentNullException.ThrowIfNull(action);
 
-        if (!filepath.StartsWith(_watchedDirectory))
+        if (!FilepathStartsWith(filepath,_watchedDirectory))
         {
             Log.Error($"Cannot watch file outside of watched directory: \"{filepath}\" is not in \"{_watchedDirectory}\"");
             return;
@@ -63,6 +66,27 @@ public sealed class ResourceFileWatcher : IDisposable
         _fsWatcher.Created += OnFileCreated;
         _fsWatcher.Deleted += OnFileDeleted;
         _fsWatcher.Error += OnError;
+    }
+
+    private bool FilepathStartsWith(string path, string start)
+    {
+        if (path.Length < start.Length)
+            return false;
+
+        for (var index = 0; index < start.Length; index++)
+        {
+            var cA = path[index];
+            var cB = start[index];
+            if (cA == cB)
+                continue;
+
+            if ((cA == '/' || cA == '\\') && (cB == '/' || cB == '\\'))
+                continue;
+
+            return false;
+        }
+
+        return true;
     }
 
     internal void RemoveFileHook(string absolutePath, FileWatcherAction onResourceChanged)
@@ -182,6 +206,7 @@ public sealed class ResourceFileWatcher : IDisposable
 
     private void OnFileChanged(object sender, FileSystemEventArgs e)
     {
+        Log.Debug($"FileEvent(change) [{e.ChangeType}] {e.FullPath}");
         e.FullPath.ToForwardSlashesUnsafe();
         var isRenamed = false;
 

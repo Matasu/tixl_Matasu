@@ -475,7 +475,7 @@ internal sealed partial class AssetLibrary
             
             ImGui.BeginGroup();
             {
-                var package = ResourceManager.SharedResourcePackages.FirstOrDefault(p => p.Id == asset.PackageId);
+                var package = ResourcePackageManager.SharedResourcePackages.FirstOrDefault(p => p.Id == asset.PackageId);
                 ThumbnailManager.GetThumbnail(asset, package).AsImguiImage();
             }
             ImGui.EndGroup();

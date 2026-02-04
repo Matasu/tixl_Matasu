@@ -46,7 +46,7 @@ public static class AssetRegistry
                 absolutePath = asset.FileSystemInfo.FullName;
                 resourceContainer = null;
 
-                foreach (var c in ResourceManager.SharedResourcePackages)
+                foreach (var c in ResourcePackageManager.SharedResourcePackages)
                 {
                     if (c.Id != asset.PackageId) continue;
                     resourceContainer = c;
@@ -100,7 +100,7 @@ public static class AssetRegistry
         var packageName = span[..projectSeparator];
         var localPath = span[(projectSeparator + 1)..];
 
-        var packages = consumer?.AvailableResourcePackages ?? ResourceManager.SharedResourcePackages;
+        var packages = consumer?.AvailableResourcePackages ?? ResourcePackageManager.SharedResourcePackages;
         if (packages.Count == 0)
         {
             if (logWarnings)
@@ -310,7 +310,7 @@ public static class AssetRegistry
             return null;
         }
         
-        var package = ResourceManager.SharedResourcePackages.FirstOrDefault(p => p.Id == oldAsset.PackageId);
+        var package = ResourcePackageManager.SharedResourcePackages.FirstOrDefault(p => p.Id == oldAsset.PackageId);
         if (package == null)
         {
             Log.Warning("Can't resolve old path package");

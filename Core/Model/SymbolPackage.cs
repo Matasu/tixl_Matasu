@@ -145,14 +145,14 @@ public abstract partial class SymbolPackage : IResourcePackage
             Directory.CreateDirectory(AssetsFolder);
         }
 
-        ResourceManager.AddSharedResourceFolder(this, AssemblyInformation.ShouldShareResources);
+        ResourcePackageManager.AddSharedResourceFolder(this, AssemblyInformation.ShouldShareResources);
         AssetRegistry.RegisterAssetsFromPackage(this);
     }
 
     public virtual void Dispose()
     {
         AssetRegistry.UnregisterPackage(Id);
-        ResourceManager.RemoveSharedResourceFolder(this);
+        ResourcePackageManager.RemoveSharedResourceFolder(this);
         ClearSymbols();
 
         var currentPackages = _allPackages.ToList();
