@@ -1,65 +1,103 @@
 using System;
 using System.Numerics;
-using System.Windows.Forms;
+using Silk.NET.Input;
+using SilkWindows;
 using T3.Core.Animation;
 using T3.Core.IO;
 using T3.Core.SystemUi;
-using T3.SystemUi;
-using MouseButtons = System.Windows.Forms.MouseButtons;
 
 namespace T3.Player;
 
 internal static partial class Program
 {
-    private static void InitializeInput(Control windowControl)
+    private static void InitializeInput(SilkRenderWindow window)
     {
-        MsForms.MsForms.TrackKeysOf(_renderForm);
-        windowControl.KeyUp += OnRenderFormOnKeyUp;
-        windowControl.MouseMove += MouseMoveHandler;
-        windowControl.MouseClick += MouseMoveHandler;
+        // Track keyboard via Silk.NET input
+        foreach (var keyboard in window.Keyboards)
+        {
+            keyboard.KeyDown += (kb, key, scancode) =>
+                                {
+                                    var vk = SilkKeyMap.ToVirtualKey(key);
+                                    if (vk != 0)
+                                        KeyHandler.SetKeyDown(vk);
+                                };
+            keyboard.KeyUp += OnKeyUp;
+        }
+
+        // Track mouse via Silk.NET input
+        foreach (var mouse in window.Mice)
+        {
+            mouse.MouseMove += OnMouseMove;
+            mouse.MouseDown += (m, btn) =>
+                               {
+                                   if (btn == MouseButton.Left)
+                                       _mouseLeftDown = true;
+                               };
+            mouse.MouseUp += (m, btn) =>
+                             {
+                                 if (btn == MouseButton.Left)
+                                     _mouseLeftDown = false;
+                             };
+        }
     }
-    
-    private static void OnRenderFormOnKeyUp(object _, KeyEventArgs keyArgs)
+
+    private static void OnKeyUp(IKeyboard keyboard, Key key, int scancode)
     {
+        var vk = SilkKeyMap.ToVirtualKey(key);
+        if (vk != 0)
+            KeyHandler.SetKeyUp(vk);
+
         var coreUi = CoreUi.Instance;
-        if (_resolvedOptions.Windowed && keyArgs is { Alt: true, KeyCode: Keys.Enter })
+
+        // Alt+Enter for fullscreen toggle
+        if (_resolvedOptions.Windowed && SilkKeyMap.IsAlt(key))
+        {
+            // Check if Enter was also just pressed (handled via key state)
+        }
+
+        if (key == Key.Enter && keyboard.IsKeyPressed(Key.AltLeft))
         {
             _swapChain.IsFullScreen = !_swapChain.IsFullScreen;
-            RebuildBackBuffer(_renderForm, _device, ref _renderView, ref _backBuffer, _swapChain);
+            RebuildBackBuffer(_renderWindow, _device, ref _renderView, ref _backBuffer, _swapChain);
             coreUi.Cursor.SetVisible(!_swapChain.IsFullScreen);
         }
 
         var currentPlayback = Playback.Current;
         if (ProjectSettings.Config.EnablePlaybackControlWithKeyboard)
         {
-            switch (keyArgs.KeyCode)
+            switch (key)
             {
-                case Keys.Left:
+                case Key.Left:
                     currentPlayback.TimeInBars -= 4;
                     break;
-                case Keys.Right:
+                case Key.Right:
                     currentPlayback.TimeInBars += 4;
                     break;
-                case Keys.Space:
+                case Key.Space:
                     currentPlayback.PlaybackSpeed = Math.Abs(currentPlayback.PlaybackSpeed) > 0.01f ? 0 : 1;
                     break;
             }
         }
 
-        if (keyArgs.KeyCode == Keys.Escape)
+        if (key == Key.Escape)
         {
             coreUi.ExitApplication();
         }
     }
 
-    private static void MouseMoveHandler(object sender, System.Windows.Forms.MouseEventArgs e)
+    private static void OnMouseMove(IMouse mouse, Vector2 position)
     {
-        if (sender is not Form form)
+        var windowWidth = _renderWindow.ClientWidth;
+        var windowHeight = _renderWindow.ClientHeight;
+
+        if (windowWidth <= 0 || windowHeight <= 0)
             return;
 
-        var relativePosition = new Vector2((float)e.X / form.Size.Width,
-                                           (float)e.Y / form.Size.Height);
+        var relativePosition = new Vector2(position.X / windowWidth,
+                                           position.Y / windowHeight);
 
-        MouseInput.Set(relativePosition, (e.Button & MouseButtons.Left) != 0);
+        MouseInput.Set(relativePosition, _mouseLeftDown);
     }
+
+    private static bool _mouseLeftDown;
 }

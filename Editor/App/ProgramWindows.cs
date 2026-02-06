@@ -257,6 +257,7 @@ internal static class ProgramWindows
     internal static void InitializeSecondaryViewerWindow(string name, int width, int height)
     {
         Viewer = new(name, disableClose: true);
+        Viewer.Form.IsViewer = true; // Mark as viewer so mouse input is ignored for ImGui
         Viewer.SetDevice(_device, _deviceContext);
         Viewer.SetSize(width, height);
         Viewer.SetSizeable();

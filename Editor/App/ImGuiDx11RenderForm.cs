@@ -1,6 +1,9 @@
+using System.Numerics;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using ImGuiNET;
-using SharpDX.Windows;
+using Silk.NET.Input;
+using SilkWindows;
 using T3.Editor.Gui.UiHelpers;
 using T3.SystemUi;
 
@@ -9,321 +12,357 @@ using T3.SystemUi;
 namespace T3.Editor.App;
 
 /// <summary>
-/// A RenderForm class that maps windows RenderForm events and to ImGui 
+/// Wraps a SilkRenderWindow and maps Silk.NET input events to ImGui IO.
+/// Replaces the previous RenderForm-based implementation.
 /// </summary>
-public class ImGuiDx11RenderForm : RenderForm
+public class ImGuiDx11RenderForm : IDisposable
 {
     internal static IWindowsFormsMessageHandler[] InputMethods = Array.Empty<IWindowsFormsMessageHandler>();
 
-    public ImGuiDx11RenderForm(string title)
-        : base(title)
-    {
-        AllowDrop = true;
-
-        DragEnter += OnDragEnter;
-        DragDrop += OnDragDrop;
-        DragOver += OnDragOver;
-        DragLeave += OnDragLeave;
-
-        MouseMove += (o, e) =>
-                     {
-                         if (this != ProgramWindows.Viewer?.Form) // Ignore mouse updates from Viewer
-                         {
-                             ImGui.GetIO().MousePos = new System.Numerics.Vector2(e.X, e.Y);
-                         }
-                     };
-    }
-
-    #region WM Message Ids
-    private const int WM_LBUTTONDOWN = 0x0201;
-    private const int WM_LBUTTONUP = 0x0202;
-    private const int WM_LBUTTONDBLCLK = 0x0203;
-    private const int WM_RBUTTONDOWN = 0x0204;
-    private const int WM_RBUTTONUP = 0x0205;
-    private const int WM_RBUTTONDBLCLK = 0x0206;
-    private const int WM_MBUTTONDOWN = 0x0207;
-    private const int WM_MBUTTONUP = 0x0208;
-    private const int WM_MBUTTONDBLCLK = 0x0209;
-
-    private const int WM_MOUSEWHEEL = 0x020A;
-    private const int WM_MOUSEHWHEEL = 0x020E;
-    private const int WM_KEYDOWN = 0x0100;
-    private const int WM_SYSKEYDOWN = 0x0104;
-    private const int WM_KEYUP = 0x0101;
-    private const int WM_SYSKEYUP = 0x0105;
-    private const int WM_CHAR = 0x0102;
-    private const int WM_SETCURSOR = 0x0020;
-
-    private const int WM_SETFOCUS = 0x0007;
-    private const int WM_ACTIVATEAPP = 0x001C;
-    #endregion
-
-    #region VK constants
-    private const int VK_SHIFT = 0x10;
-    private const int VK_CONTROL = 0x11;
-    private const int VK_ALT = 0x12;
-    #endregion
+    public SilkRenderWindow RenderWindow { get; }
+    public IntPtr Handle => RenderWindow.Handle;
+    public int ClientWidth => RenderWindow.ClientWidth;
+    public int ClientHeight => RenderWindow.ClientHeight;
 
     public static event Action<string[], Vector2> FilesDropped;
-    
-    private void OnDragEnter(object s, DragEventArgs e)
-    {
-        if (this == ProgramWindows.Viewer?.Form)
-        {
-            e.Effect = DragDropEffects.None;
-            return;
-        } // optional
 
-        if (e.Data == null)
-        {
-            return;
-        }
-
-        e.Effect = e.Data.GetDataPresent(DataFormats.FileDrop) ||
-                   e.Data.GetDataPresent(DataFormats.UnicodeText)
-                       ? DragDropEffects.Copy
-                       : DragDropEffects.None;
-        
-        DragAndDropHandling.StartExternalDrag(DragAndDropHandling.DragTypes.ExternalFile, 
-                                              "External Files");        
-    }
-    
-    private static void OnDragLeave(object s, EventArgs eventArgs)
+    public ImGuiDx11RenderForm(string title)
+        : this(title, 640, 480)
     {
-        DragAndDropHandling.CancelExternalDrag();
     }
 
-    private void OnDragDrop(object s, DragEventArgs e)
+    public ImGuiDx11RenderForm(string title, int width, int height, bool disableClose = false)
     {
-        if (this == ProgramWindows.Viewer?.Form || e.Data == null) 
-            return; // optional
+        RenderWindow = new SilkRenderWindow(title, width, height, resizable: true, visible: false);
 
-        var p = PointToClient(new System.Drawing.Point(e.X, e.Y));
-        var pos = new Vector2(p.X, p.Y);
+        SetupImGuiInput();
+        SetupFileDrop();
 
-        if (e.Data.GetDataPresent(DataFormats.FileDrop))
+        if (disableClose)
         {
-            var files = (string[])e.Data.GetData(DataFormats.FileDrop)!;
-            FilesDropped?.Invoke(files, pos);
-            DragAndDropHandling.CompleteExternalDrop(DragAndDropHandling.DragTypes.ExternalFile, 
-                                                  string.Join("|", files));
+            DisableCloseButton(RenderWindow.Handle);
         }
-        else if (e.Data.GetDataPresent(DataFormats.UnicodeText))
+
+        // Install WndProc hook for SpaceMouse WM_INPUT forwarding
+        InstallWndProcHook();
+    }
+
+    private void SetupImGuiInput()
+    {
+        foreach (var keyboard in RenderWindow.Keyboards)
         {
-            var t = ((string)e.Data.GetData(DataFormats.UnicodeText)!).Trim('"');
-            if (System.IO.Path.IsPathRooted(t))
+            keyboard.KeyDown += OnKeyDown;
+            keyboard.KeyUp += OnKeyUp;
+            keyboard.KeyChar += OnKeyChar;
+        }
+
+        foreach (var mouse in RenderWindow.Mice)
+        {
+            mouse.MouseDown += OnMouseDown;
+            mouse.MouseUp += OnMouseUp;
+            mouse.MouseMove += OnMouseMove;
+            mouse.Scroll += OnMouseScroll;
+        }
+
+        RenderWindow.FocusChanged += OnFocusChanged;
+    }
+
+    private void SetupFileDrop()
+    {
+        RenderWindow.FileDrop += paths =>
+                                 {
+                                     if (paths == null || paths.Length == 0)
+                                         return;
+
+                                     var io = ImGui.GetIO();
+                                     var mousePos = io.MousePos;
+                                     FilesDropped?.Invoke(paths, mousePos);
+                                 };
+    }
+
+    #region ImGui Input Mapping
+
+    private void OnMouseDown(IMouse mouse, MouseButton button)
+    {
+        if (_isViewer)
+            return;
+
+        var io = ImGui.GetIO();
+        var btnIndex = button switch
+        {
+            MouseButton.Left => 0,
+            MouseButton.Right => 1,
+            MouseButton.Middle => 2,
+            _ => -1
+        };
+
+        if (btnIndex >= 0)
+            io.MouseDown[btnIndex] = true;
+    }
+
+    private void OnMouseUp(IMouse mouse, MouseButton button)
+    {
+        var io = ImGui.GetIO();
+        var btnIndex = button switch
+        {
+            MouseButton.Left => 0,
+            MouseButton.Right => 1,
+            MouseButton.Middle => 2,
+            _ => -1
+        };
+
+        if (btnIndex >= 0)
+            io.MouseDown[btnIndex] = false;
+    }
+
+    private void OnMouseMove(IMouse mouse, Vector2 position)
+    {
+        if (!_isViewer)
+        {
+            ImGui.GetIO().MousePos = position;
+        }
+    }
+
+    private void OnMouseScroll(IMouse mouse, ScrollWheel scroll)
+    {
+        var io = ImGui.GetIO();
+
+        // Check Ctrl state for zoom detection
+        var isCtrl = false;
+        foreach (var kb in RenderWindow.Keyboards)
+        {
+            if (kb.IsKeyPressed(Key.ControlLeft) || kb.IsKeyPressed(Key.ControlRight))
             {
-                DragAndDropHandling.CompleteExternalDrop(DragAndDropHandling.DragTypes.ExternalFile, t);                
-                FilesDropped?.Invoke(new[] { t }, pos);
+                isCtrl = true;
+                break;
             }
         }
-    }
 
-    private void OnDragOver(object s, DragEventArgs e)
-    {
-        var p = PointToClient(new System.Drawing.Point(e.X, e.Y));
-        ImGui.GetIO().MousePos = new System.Numerics.Vector2(p.X, p.Y);
-    
-        e.Effect = DragDropEffects.Copy;
-    }
-    
-    protected override void WndProc(ref System.Windows.Forms.Message m)
-    {
-        try
+        var now = Environment.TickCount64;
+        var inZoomGesture = (now - _lastZoomTick) < 80;
+
+        if (isCtrl || inZoomGesture)
         {
-            var filterAltKeyToPreventFocusLoss = (m.Msg == WM_SYSKEYDOWN || m.Msg == WM_SYSKEYUP) && (int)m.WParam == VK_ALT;
-            if (!filterAltKeyToPreventFocusLoss)
-                base.WndProc(ref m);
-
-            foreach (var inputMethod in InputMethods)
-                inputMethod.ProcessMessage(m);
-
-            var isViewer = this == ProgramWindows.Viewer?.Form;
-
-            ImGuiIOPtr io = ImGui.GetIO();
-
-            switch (m.Msg)
-            {
-                case WM_LBUTTONDOWN:
-                case WM_LBUTTONDBLCLK:
-                case WM_RBUTTONDOWN:
-                case WM_RBUTTONDBLCLK:
-                case WM_MBUTTONDOWN:
-                case WM_MBUTTONDBLCLK:
-                {
-                    if (isViewer)
-                        return;
-
-                    int button = 0;
-                    if (m.Msg == WM_LBUTTONDOWN || m.Msg == WM_LBUTTONDBLCLK) button = 0;
-                    if (m.Msg == WM_RBUTTONDOWN || m.Msg == WM_RBUTTONDBLCLK) button = 1;
-                    if (m.Msg == WM_MBUTTONDOWN || m.Msg == WM_MBUTTONDBLCLK) button = 2;
-                    // TODO
-                    //if (!ImGui.IsAnyMouseDown() && ::GetCapture() == NULL)
-                    //    ::SetCapture(hwnd);
-                    io.MouseDown[button] = true;
-                    return;
-                }
-                case WM_LBUTTONUP:
-                case WM_RBUTTONUP:
-                case WM_MBUTTONUP:
-                {
-                    int button = 0;
-                    if (m.Msg == WM_LBUTTONUP) button = 0;
-                    if (m.Msg == WM_RBUTTONUP) button = 1;
-                    if (m.Msg == WM_MBUTTONUP) button = 2;
-                    io.MouseDown[button] = false;
-                    // TODO
-                    //if (!ImGui::IsAnyMouseDown() && ::GetCapture() == hwnd)
-                    //    ::ReleaseCapture();
-                    return;
-                }
-                case WM_MOUSEWHEEL:
-                case WM_MOUSEHWHEEL:
-                {
-                    if (MouseWheelPanning.ProcessMouseWheelInput(m, io)) return;
-                    break;
-                }
-
-                case WM_KEYDOWN:
-                case WM_SYSKEYDOWN:
-                    switch ((int)m.WParam)
-                    {
-                        case VK_SHIFT:
-                            io.KeyShift = true;
-                            io.KeysDown[(int)m.WParam] = true;
-                            io.KeysDown[(int)Key.ShiftKey] = true;
-                            break;
-                        case VK_CONTROL:
-                            io.KeyCtrl = true;
-                            io.KeysDown[(int)Key.CtrlKey] = true;
-                            break;
-                        case VK_ALT:
-                            io.KeyAlt = true;
-                            io.KeysDown[(int)Key.Alt] = true;
-                            KeyHandler.SetKeyDown(Key.Alt);
-                            break;
-                        default:
-                        {
-                            if ((int)m.WParam < 256)
-                                io.KeysDown[(int)m.WParam] = true;
-                            break;
-                        }
-                    }
-
-                    return;
-                case WM_KEYUP:
-                case WM_SYSKEYUP:
-                    switch ((int)m.WParam)
-                    {
-                        case VK_SHIFT:
-                            io.KeyShift = false;
-                            io.KeysDown[(int)Key.ShiftKey] = false;
-                            break;
-                        case VK_CONTROL:
-                            io.KeyCtrl = false;
-                            io.KeysDown[(int)Key.CtrlKey] = false;
-                            break;
-                        case VK_ALT:
-                            io.KeyAlt = false;
-                            io.KeysDown[(int)Key.Alt] = false;
-                            KeyHandler.SetKeyUp(Key.Alt);
-                            break;
-                        default:
-                        {
-                            if ((int)m.WParam < 256)
-                                io.KeysDown[(int)m.WParam] = false;
-                            break;
-                        }
-                    }
-
-                    return;
-                case WM_CHAR:
-                    // You can also use ToAscii()+GetKeyboardState() to retrieve characters.
-                    if ((int)m.WParam > 0 && (int)m.WParam < 0x10000)
-                        io.AddInputCharacter((ushort)m.WParam);
-                    return;
-                case WM_SETCURSOR:
-                    if ((((int)m.LParam & 0xFFFF) == 1) && UpdateMouseCursor())
-                        m.Result = (IntPtr)1;
-                    return;
-                case WM_SETFOCUS:
-                    for (int i = 0; i < io.KeysDown.Count; i++)
-                        io.KeysDown[i] = false;
-                    io.KeyShift = false;
-                    io.KeyCtrl = false;
-                    io.KeyAlt = false;
-                    break;
-
-                case WM_ACTIVATEAPP:
-                    if (m.WParam.ToInt64() == 0) /* Being deactivated */
-                    {
-                        io.KeysDown[(int)Key.Alt] = false;
-                        KeyHandler.SetKeyUp(Key.Alt);
-                    }
-
-                    break;
-            }
+            MouseWheelPanning.AddZoom(scroll.Y / 120f);
+            _lastZoomTick = now;
+            return;
         }
-        catch (NullReferenceException)
+
+        // Vertical scroll
+        if (Math.Abs(scroll.Y) > 0.001f)
         {
-            Log.Warning("Detected invalid event message that would trigger null-reference exception");
+            var notches = scroll.Y / 120f;
+            io.MouseWheel += notches / 2;
+            MouseWheelPanning.AddVerticalScroll(notches);
+        }
+
+        // Horizontal scroll
+        if (Math.Abs(scroll.X) > 0.001f)
+        {
+            var notches = scroll.X / 120f;
+            io.MouseWheelH += notches / 2;
+            MouseWheelPanning.AddHorizontalScroll(notches);
         }
     }
 
-    private bool UpdateMouseCursor()
+    private void OnKeyDown(IKeyboard keyboard, Key key, int scancode)
+    {
+        var io = ImGui.GetIO();
+        var vk = SilkKeyMap.ToVirtualKey(key);
+
+        if (SilkKeyMap.IsShift(key))
+        {
+            io.KeyShift = true;
+            if (vk < io.KeysDown.Count)
+                io.KeysDown[vk] = true;
+            io.KeysDown[(int)T3.SystemUi.Key.ShiftKey] = true;
+        }
+        else if (SilkKeyMap.IsControl(key))
+        {
+            io.KeyCtrl = true;
+            io.KeysDown[(int)T3.SystemUi.Key.CtrlKey] = true;
+        }
+        else if (SilkKeyMap.IsAlt(key))
+        {
+            io.KeyAlt = true;
+            io.KeysDown[(int)T3.SystemUi.Key.Alt] = true;
+            KeyHandler.SetKeyDown(T3.SystemUi.Key.Alt);
+        }
+        else if (vk > 0 && vk < 256)
+        {
+            io.KeysDown[vk] = true;
+        }
+    }
+
+    private void OnKeyUp(IKeyboard keyboard, Key key, int scancode)
+    {
+        var io = ImGui.GetIO();
+        var vk = SilkKeyMap.ToVirtualKey(key);
+
+        if (SilkKeyMap.IsShift(key))
+        {
+            io.KeyShift = false;
+            io.KeysDown[(int)T3.SystemUi.Key.ShiftKey] = false;
+        }
+        else if (SilkKeyMap.IsControl(key))
+        {
+            io.KeyCtrl = false;
+            io.KeysDown[(int)T3.SystemUi.Key.CtrlKey] = false;
+        }
+        else if (SilkKeyMap.IsAlt(key))
+        {
+            io.KeyAlt = false;
+            io.KeysDown[(int)T3.SystemUi.Key.Alt] = false;
+            KeyHandler.SetKeyUp(T3.SystemUi.Key.Alt);
+        }
+        else if (vk > 0 && vk < 256)
+        {
+            io.KeysDown[vk] = false;
+        }
+    }
+
+    private void OnKeyChar(IKeyboard keyboard, char character)
+    {
+        if (character > 0 && character < 0x10000)
+            ImGui.GetIO().AddInputCharacter(character);
+    }
+
+    private void OnFocusChanged(bool focused)
+    {
+        if (focused)
+        {
+            // On focus gain, reset all key states to prevent stuck keys
+            var io = ImGui.GetIO();
+            for (int i = 0; i < io.KeysDown.Count; i++)
+                io.KeysDown[i] = false;
+            io.KeyShift = false;
+            io.KeyCtrl = false;
+            io.KeyAlt = false;
+        }
+        else
+        {
+            // On focus loss, clear alt key
+            var io = ImGui.GetIO();
+            io.KeysDown[(int)T3.SystemUi.Key.Alt] = false;
+            KeyHandler.SetKeyUp(T3.SystemUi.Key.Alt);
+        }
+    }
+
+    #endregion
+
+    #region Mouse Cursor
+
+    internal void UpdateMouseCursor()
     {
         ImGuiIOPtr io = ImGui.GetIO();
         if (((uint)io.ConfigFlags & (uint)ImGuiConfigFlags.NoMouseCursorChange) > 0)
-            return false;
+            return;
 
-        ImGuiMouseCursor imgui_cursor = ImGui.GetMouseCursor();
-        if (imgui_cursor == ImGuiMouseCursor.None || io.MouseDrawCursor)
+        ImGuiMouseCursor imguiCursor = ImGui.GetMouseCursor();
+        if (imguiCursor == ImGuiMouseCursor.None || io.MouseDrawCursor)
         {
-            // Hide OS mouse cursor if imgui is drawing it or if it wants no cursor
             Cursor.Current = null;
-            return true;
+            return;
         }
 
-        Cursor newCursor = null;
-
-        // Show OS mouse cursor
-        switch (imgui_cursor)
+        Cursor newCursor = imguiCursor switch
         {
-            case ImGuiMouseCursor.Arrow:
-                newCursor = Cursors.Arrow;
-                break;
-            case ImGuiMouseCursor.TextInput:
-                newCursor = Cursors.IBeam;
-                break;
-            case ImGuiMouseCursor.ResizeAll:
-                newCursor = Cursors.SizeAll;
-                break;
-            case ImGuiMouseCursor.ResizeEW:
-                newCursor = Cursors.SizeWE;
-                break;
-            case ImGuiMouseCursor.ResizeNS:
-                newCursor = Cursors.SizeNS;
-                break;
-            case ImGuiMouseCursor.ResizeNESW:
-                newCursor = Cursors.SizeNESW;
-                break;
-            case ImGuiMouseCursor.ResizeNWSE:
-                newCursor = Cursors.SizeNWSE;
-                break;
-            case ImGuiMouseCursor.Hand:
-                newCursor = Cursors.Hand;
-                break;
-            default:
-                newCursor = Cursors.Arrow;
-                break;
-        }
+            ImGuiMouseCursor.TextInput => Cursors.IBeam,
+            ImGuiMouseCursor.ResizeAll => Cursors.SizeAll,
+            ImGuiMouseCursor.ResizeEW => Cursors.SizeWE,
+            ImGuiMouseCursor.ResizeNS => Cursors.SizeNS,
+            ImGuiMouseCursor.ResizeNESW => Cursors.SizeNESW,
+            ImGuiMouseCursor.ResizeNWSE => Cursors.SizeNWSE,
+            ImGuiMouseCursor.Hand => Cursors.Hand,
+            _ => Cursors.Arrow
+        };
 
         if (Cursor.Current != newCursor)
         {
-            Cursor = newCursor;
+            Cursor.Current = newCursor;
+        }
+    }
+
+    #endregion
+
+    #region WndProc Hook for SpaceMouse (WM_INPUT)
+
+    private void InstallWndProcHook()
+    {
+        if (InputMethods.Length == 0)
+            return;
+
+        _newWndProcDelegate = WndProcHook;
+        var newWndProcPtr = Marshal.GetFunctionPointerForDelegate(_newWndProcDelegate);
+        _originalWndProc = SetWindowLongPtr(RenderWindow.Handle, GWL_WNDPROC, newWndProcPtr);
+    }
+
+    private IntPtr WndProcHook(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam)
+    {
+        if (msg == WM_INPUT)
+        {
+            foreach (var handler in InputMethods)
+            {
+                var message = Message.Create(hwnd, (int)msg, wParam, lParam);
+                handler.ProcessMessage(message);
+            }
         }
 
-        return true;
+        return CallWindowProc(_originalWndProc, hwnd, msg, wParam, lParam);
+    }
+
+    private const int GWL_WNDPROC = -4;
+    private const uint WM_INPUT = 0x00FF;
+
+    private delegate IntPtr WndProcDelegate(IntPtr hwnd, uint msg, IntPtr wParam, IntPtr lParam);
+    private WndProcDelegate _newWndProcDelegate;
+    private IntPtr _originalWndProc;
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern IntPtr SetWindowLongPtr(IntPtr hWnd, int nIndex, IntPtr dwNewLong);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CallWindowProc(IntPtr lpPrevWndFunc, IntPtr hWnd, uint Msg, IntPtr wParam, IntPtr lParam);
+
+    #endregion
+
+    #region Window Close Button
+
+    private static void DisableCloseButton(IntPtr hwnd)
+    {
+        var sysMenu = GetSystemMenu(hwnd, false);
+        if (sysMenu != IntPtr.Zero)
+        {
+            EnableMenuItem(sysMenu, SC_CLOSE, MF_BYCOMMAND | MF_GRAYED);
+        }
+    }
+
+    private const uint SC_CLOSE = 0xF060;
+    private const uint MF_BYCOMMAND = 0x00000000;
+    private const uint MF_GRAYED = 0x00000001;
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetSystemMenu(IntPtr hWnd, bool bRevert);
+
+    [DllImport("user32.dll")]
+    private static extern bool EnableMenuItem(IntPtr hMenu, uint uIDEnableItem, uint uEnable);
+
+    #endregion
+
+    /// <summary>
+    /// Set to true for the viewer window, which ignores mouse input.
+    /// </summary>
+    internal bool IsViewer
+    {
+        get => _isViewer;
+        set => _isViewer = value;
+    }
+
+    private bool _isViewer;
+    private long _lastZoomTick;
+
+    public void Dispose()
+    {
+        RenderWindow?.Dispose();
     }
 }

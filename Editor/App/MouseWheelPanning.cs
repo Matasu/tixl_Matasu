@@ -62,13 +62,22 @@ internal static class MouseWheelPanning
         return false;
     }
 
+    /// <summary>Add vertical scroll delta (in notches). Called from Silk.NET mouse scroll handler.</summary>
+    internal static void AddVerticalScroll(float notches) => _wheelY += notches;
+
+    /// <summary>Add horizontal scroll delta (in notches). Called from Silk.NET mouse scroll handler.</summary>
+    internal static void AddHorizontalScroll(float notches) => _wheelX += notches;
+
+    /// <summary>Add zoom delta (in notches). Called from Silk.NET mouse scroll handler when Ctrl is held.</summary>
+    internal static void AddZoom(float notches) => _zoomNotches += notches;
+
     private const int WM_MOUSEWHEEL = 0x020A;
     private const int WM_MOUSEHWHEEL = 0x020E;
     private const int MK_CONTROL = 0x0008;
     private const int WHEEL_DELTA = 120;
 
     private static long _lastZoomTick;
-    private static float _wheelX; 
+    private static float _wheelX;
     private static float _wheelY;
     private static float _zoomNotches;
 }
