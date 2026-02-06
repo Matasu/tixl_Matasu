@@ -143,25 +143,24 @@ public class ImGuiDx11RenderForm : IDisposable
 
         if (isCtrl || inZoomGesture)
         {
-            MouseWheelPanning.AddZoom(scroll.Y / 120f);
+            // Silk.NET/GLFW provides scroll values already in notches (1.0 per detent)
+            MouseWheelPanning.AddZoom(scroll.Y);
             _lastZoomTick = now;
             return;
         }
 
-        // Vertical scroll
+        // Vertical scroll - scroll.Y is already in notches (unlike raw Win32 delta/120)
         if (Math.Abs(scroll.Y) > 0.001f)
         {
-            var notches = scroll.Y / 120f;
-            io.MouseWheel += notches / 2;
-            MouseWheelPanning.AddVerticalScroll(notches);
+            io.MouseWheel += scroll.Y / 2;
+            MouseWheelPanning.AddVerticalScroll(scroll.Y);
         }
 
         // Horizontal scroll
         if (Math.Abs(scroll.X) > 0.001f)
         {
-            var notches = scroll.X / 120f;
-            io.MouseWheelH += notches / 2;
-            MouseWheelPanning.AddHorizontalScroll(notches);
+            io.MouseWheelH += scroll.X / 2;
+            MouseWheelPanning.AddHorizontalScroll(scroll.X);
         }
     }
 
@@ -289,9 +288,8 @@ public class ImGuiDx11RenderForm : IDisposable
 
     private void InstallWndProcHook()
     {
-        if (InputMethods.Length == 0)
-            return;
-
+        // Always install the hook - InputMethods may be populated after construction
+        // (e.g. when SpaceMouse is initialized via SetInteractionDevices)
         _newWndProcDelegate = WndProcHook;
         var newWndProcPtr = Marshal.GetFunctionPointerForDelegate(_newWndProcDelegate);
         _originalWndProc = SetWindowLongPtr(RenderWindow.Handle, GWL_WNDPROC, newWndProcPtr);
