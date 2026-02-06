@@ -310,3 +310,9 @@ Installer/dependencies/downloads
 
 shadertoolsconfig.json
 .temp/
+
+# Gas Town (added by gt)
+.runtime/
+.claude/
+.beads/
+.logs/
