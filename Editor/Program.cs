@@ -25,8 +25,8 @@ using T3.Editor.Skills.Training;
 using T3.Editor.SystemUi;
 using T3.Editor.UiContentDrawing;
 using T3.Editor.UiModel.Helpers;
-using T3.MsForms;
 using T3.SystemUi;
+using SilkWindows.Implementations;
 using ShaderCompiler = T3.Core.Resource.ShaderCompiling.ShaderCompiler;
 
 namespace T3.Editor;
@@ -82,7 +82,8 @@ internal static class Program
         // Not calling this first will cause exceptions...
         Console.WriteLine("Starting T3 Editor");
         Console.WriteLine("Creating EditorUi");
-        EditorUi.Instance = new MsFormsEditor();
+        var coreService = new T3.MsForms.MsForms();
+        EditorUi.Instance = new SilkEditorSystemUi(coreService);
             
         var windowProvider = new SilkWindowProvider();
         var imguiContextLock = windowProvider.ContextLock;
