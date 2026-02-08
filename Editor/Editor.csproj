@@ -61,9 +61,6 @@
             <NoWarn>NU1701</NoWarn>
         </PackageReference>
         <PackageReference Include="Sentry" Version="4.1.1" />
-        <PackageReference Include="SharpDX.Desktop" Version="4.2.0">
-            <NoWarn>NU1701</NoWarn>
-        </PackageReference>
         <PackageReference Include="System.Management" Version="8.0.0" />
         <PackageReference Include="System.Runtime.Serialization.Formatters" Version="9.0.4" />
     </ItemGroup>

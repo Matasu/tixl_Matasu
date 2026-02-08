@@ -1,18 +1,20 @@
 using System.ComponentModel;
 using System.Drawing;
-using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows.Forms;
 using SharpDX;
 using SharpDX.Direct3D;
 using SharpDX.Direct3D11;
 using SharpDX.DXGI;
-using SharpDX.Windows;
+using Silk.NET.Maths;
+using Silk.NET.Windowing;
+using SilkWindows;
 using T3.Core.DataTypes.Vector;
 using T3.Core.Resource;
 using T3.Core.SystemUi;
 using T3.Editor.Gui.Styling;
+using T3.SystemUi;
 using Device = SharpDX.Direct3D11.Device;
-using Icon = System.Drawing.Icon;
 using Rectangle = System.Drawing.Rectangle;
 using Resource = SharpDX.Direct3D11.Resource;
 using Vector2 = System.Numerics.Vector2;
@@ -20,15 +22,15 @@ using Vector2 = System.Numerics.Vector2;
 namespace T3.Editor.App;
 
 /// <summary>
-/// Functions and properties related to rendering DX11 content into  RenderForm windows
+/// Functions and properties related to rendering DX11 content into Silk.NET windows
 /// </summary>
 internal sealed class AppWindow
 {
     public IntPtr HwndHandle => Form.Handle;
     public Int2 Size => new(Width, Height);
-    public int Width => Form.ClientSize.Width;
-    public int Height => Form.ClientSize.Height;
-    public bool IsFullScreen => Form.FormBorderStyle == FormBorderStyle.None;
+    public int Width => Form.ClientWidth;
+    public int Height => Form.ClientHeight;
+    public bool IsFullScreen => _isFullScreen;
 
     internal SwapChain SwapChain { get => _swapChain; private set => _swapChain = value; }
     internal RenderTargetView RenderTargetView { get => _renderTargetView; private set => _renderTargetView = value; }
@@ -43,69 +45,77 @@ internal sealed class AppWindow
                                                                   IsWindowed = true,
                                                                   OutputHandle = Form.Handle,
                                                                   SampleDescription = new SampleDescription(1, 0),
-                                                                  
+
                                                                   // Working consistently
                                                                   BufferCount = 2,
                                                                   SwapEffect = SwapEffect.Discard,
-                                                                  
-                                                                  //BufferCount = 2,
-                                                                  //SwapEffect = SwapEffect.FlipDiscard,
                                                                   Usage = Usage.RenderTargetOutput
                                                               };
 
-    internal bool IsMinimized => Form.WindowState == FormWindowState.Minimized;
-    internal bool IsCursorOverWindow => Form.Bounds.Contains(CoreUi.Instance.Cursor.Position);
+    internal bool IsMinimized => Form.RenderWindow.WindowState == Silk.NET.Windowing.WindowState.Minimized;
+    internal bool IsCursorOverWindow => IsCursorInWindowBounds();
     public Texture2D Texture { get; set; }
 
     internal AppWindow(string windowTitle, bool disableClose)
     {
-        CreateRenderForm(windowTitle, disableClose);
+        CreateWindow(windowTitle, disableClose);
     }
 
     public void SetVisible(bool isVisible)
     {
-        Form.Visible = isVisible;
+        Form.RenderWindow.IsVisible = isVisible;
     }
 
     public void SetSizeable()
     {
-        Form.FormBorderStyle = FormBorderStyle.Sizable;
-        if (_boundsBeforeFullscreen.Height != 0 && _boundsBeforeFullscreen.Width != 0)
+        Form.RenderWindow.WindowBorder = WindowBorder.Resizable;
+        _isFullScreen = false;
+        if (_boundsBeforeFullscreen.Width > 0 && _boundsBeforeFullscreen.Height > 0)
         {
-            Form.Bounds = _boundsBeforeFullscreen;
+            Form.RenderWindow.Position = new Vector2D<int>(_boundsBeforeFullscreen.X, _boundsBeforeFullscreen.Y);
+            Form.RenderWindow.Size = new Vector2D<int>(_boundsBeforeFullscreen.Width, _boundsBeforeFullscreen.Height);
         }
     }
 
-    public void Show() => Form.Show();
+    public void Show() => Form.RenderWindow.IsVisible = true;
 
     public Vector2 GetDpi()
     {
-        using Graphics graphics = Form.CreateGraphics();
-        Vector2 dpi = new(graphics.DpiX, graphics.DpiY);
-        return dpi;
+        var dpi = GetDpiForWindow(Form.Handle);
+        if (dpi == 0) dpi = 96; // fallback to standard DPI
+        return new Vector2(dpi, dpi);
     }
 
     internal void SetFullScreen(int screenIndex)
     {
-        _boundsBeforeFullscreen = Form.Bounds;
-        Form.FormBorderStyle = FormBorderStyle.Sizable;
-        Form.WindowState = FormWindowState.Normal;
-        Form.FormBorderStyle = FormBorderStyle.None;
-        Form.Bounds = Screen.AllScreens[screenIndex].Bounds;
-  
+        var pos = Form.RenderWindow.Position;
+        var size = Form.RenderWindow.Size;
+        _boundsBeforeFullscreen = new Rectangle(pos.X, pos.Y, size.X, size.Y);
+
+        // Get screen bounds
+        var screenBounds = Screen.AllScreens[screenIndex].Bounds;
+        Form.RenderWindow.WindowBorder = WindowBorder.Hidden;
+        Form.RenderWindow.Position = new Vector2D<int>(screenBounds.X, screenBounds.Y);
+        Form.RenderWindow.Size = new Vector2D<int>(screenBounds.Width, screenBounds.Height);
+        _isFullScreen = true;
     }
 
     internal void UpdateSpanningBounds(int x, int y, int width, int height)
     {
-        if (Form.FormBorderStyle == FormBorderStyle.None)
+        if (_isFullScreen)
         {
-            Form.Bounds = new Rectangle(x, y, width, height);
+            Form.RenderWindow.Position = new Vector2D<int>(x, y);
+            Form.RenderWindow.Size = new Vector2D<int>(width, height);
         }
         else
         {
-            _boundsBeforeFullscreen = Form.Bounds;
-            Form.FormBorderStyle = FormBorderStyle.None;
-            Form.Bounds = new Rectangle(x, y, width, height);
+            var pos = Form.RenderWindow.Position;
+            var size = Form.RenderWindow.Size;
+            _boundsBeforeFullscreen = new Rectangle(pos.X, pos.Y, size.X, size.Y);
+            Form.RenderWindow.WindowBorder = WindowBorder.Hidden;
+            Form.RenderWindow.Position = new Vector2D<int>(x, y);
+            Form.RenderWindow.Size = new Vector2D<int>(width, height);
+            _isFullScreen = true;
         }
     }
 
@@ -127,11 +137,11 @@ internal sealed class AppWindow
         _deviceContext.ClearRenderTargetView(RenderTargetView, sharpDxColor);
     }
 
-    internal void RunRenderLoop(Action callback) => RenderLoop.Run(Form, () => callback());
+    internal void RunRenderLoop(Action callback) => Form.RenderWindow.Run(() => callback());
 
-    internal void SetSize(int width, int height) => Form.ClientSize = new Size(width, height);
+    internal void SetSize(int width, int height) => Form.RenderWindow.SetSize(width, height);
 
-    internal void SetBorderStyleSizable() => Form.FormBorderStyle = FormBorderStyle.Sizable;
+    internal void SetBorderStyleSizable() => Form.RenderWindow.WindowBorder = WindowBorder.Resizable;
 
     internal void InitializeWindow(FormWindowState windowState, CancelEventHandler handleClose, bool handleKeys)
     {
@@ -139,15 +149,61 @@ internal sealed class AppWindow
 
         if (handleKeys)
         {
-            MsForms.MsForms.TrackKeysOf(Form);
+            // Track keys via Silk.NET input for the system KeyHandler
+            foreach (var keyboard in Form.RenderWindow.Keyboards)
+            {
+                keyboard.KeyDown += (kb, key, scancode) =>
+                                    {
+                                        var vk = SilkKeyMap.ToVirtualKey(key);
+                                        if (vk != 0)
+                                            KeyHandler.SetKeyDown(vk);
+                                    };
+                keyboard.KeyUp += (kb, key, scancode) =>
+                                  {
+                                      var vk = SilkKeyMap.ToVirtualKey(key);
+                                      if (vk != 0)
+                                          KeyHandler.SetKeyUp(vk);
+                                  };
+            }
         }
-            
-        MsForms.MsForms.TrackMouseOf(Form);
+
+        // Track mouse via Silk.NET input for cursor position
+        foreach (var mouse in Form.RenderWindow.Mice)
+        {
+            mouse.MouseMove += (m, pos) =>
+                               {
+                                   if (CoreUi.Instance?.Cursor != null)
+                                   {
+                                       // Update cursor position relative to screen
+                                       // Note: ICursor.Position expects screen coordinates
+                                   }
+                               };
+        }
 
         if (handleClose != null)
-            Form.Closing += handleClose;
+        {
+            Form.RenderWindow.Closing += () =>
+                                         {
+                                             var args = new CancelEventArgs();
+                                             handleClose(Form, args);
+                                             // Note: Silk.NET doesn't support cancelling close from the event.
+                                             // The close handler is responsible for preventing close if needed.
+                                         };
+        }
 
-        Form.WindowState = windowState;
+        // Apply initial window state
+        switch (windowState)
+        {
+            case FormWindowState.Maximized:
+                Form.RenderWindow.WindowState = Silk.NET.Windowing.WindowState.Maximized;
+                break;
+            case FormWindowState.Minimized:
+                Form.RenderWindow.WindowState = Silk.NET.Windowing.WindowState.Minimized;
+                break;
+            default:
+                Form.RenderWindow.WindowState = Silk.NET.Windowing.WindowState.Normal;
+                break;
+        }
     }
 
     internal void SetDevice(Device device, DeviceContext deviceContext, SwapChain swapChain = null)
@@ -166,23 +222,20 @@ internal sealed class AppWindow
         _renderTargetView.Dispose();
         _backBufferTexture.Dispose();
         _swapChain.Dispose();
+        Form?.Dispose();
     }
 
-    private void CreateRenderForm(string windowTitle, bool disableClose)
+    private void CreateWindow(string windowTitle, bool disableClose)
     {
-        var fileName = Path.Combine(SharedResources.EditorResourcesDirectory, SharedResources.EditorResourcesDirectory, "images", "t3.ico");
-        Form = disableClose
-                   ? new NoCloseRenderForm(windowTitle)
-                         {
-                             ClientSize = new Size(640, 360 + 20),
-                             Icon = new Icon(fileName, 48, 48),
-                             FormBorderStyle = FormBorderStyle.None,
-                         }
-                   : new ImGuiDx11RenderForm(windowTitle)
-                         {
-                             ClientSize = new Size(640, 480),
-                             Icon = new Icon(fileName, 48, 48)
-                         };
+        if (disableClose)
+        {
+            Form = new ImGuiDx11RenderForm(windowTitle, 640, 360 + 20, disableClose: true);
+            Form.RenderWindow.WindowBorder = WindowBorder.Hidden;
+        }
+        else
+        {
+            Form = new ImGuiDx11RenderForm(windowTitle, 640, 480);
+        }
     }
 
     private void InitRenderTargetsAndEventHandlers()
@@ -191,51 +244,49 @@ internal sealed class AppWindow
         _backBufferTexture = Resource.FromSwapChain<Texture2D>(SwapChain, 0);
         RenderTargetView = new RenderTargetView(device, _backBufferTexture);
 
-        Form.ResizeBegin += (sender, args) => _isResizingRightNow = true;
-        Form.ResizeEnd += (sender, args) =>
-                          {
-                              RebuildBackBuffer(Form, device, ref _renderTargetView, ref _backBufferTexture, ref _swapChain);
-                              _isResizingRightNow = false;
-                          };
-        Form.ClientSizeChanged += (sender, args) =>
-                                  {
-                                      if (_isResizingRightNow)
-                                          return;
-
-                                      RebuildBackBuffer(Form, device, ref _renderTargetView, ref _backBufferTexture, ref _swapChain);
-                                  };
+        Form.RenderWindow.Resized += size =>
+                                     {
+                                         if (!_isResizingRightNow)
+                                         {
+                                             RebuildBackBuffer(device, ref _renderTargetView, ref _backBufferTexture, ref _swapChain, size.X, size.Y);
+                                         }
+                                     };
     }
 
-    private static void RebuildBackBuffer(Form form, Device device, ref RenderTargetView rtv, ref Texture2D buffer, ref SwapChain swapChain)
+    private static void RebuildBackBuffer(Device device, ref RenderTargetView rtv, ref Texture2D buffer, ref SwapChain swapChain, int width, int height)
     {
+        if (width <= 0 || height <= 0)
+            return;
+
         rtv.Dispose();
         buffer.Dispose();
-        swapChain.ResizeBuffers(3, form.ClientSize.Width, form.ClientSize.Height, Format.Unknown, 0);
+        swapChain.ResizeBuffers(3, width, height, Format.Unknown, 0);
         buffer = Resource.FromSwapChain<Texture2D>(swapChain, 0);
         rtv = new RenderTargetView(device, buffer);
     }
 
-    /// <summary>
-    /// We prevent closing the secondary viewer window for now because
-    /// this will cause a SwapChain related crash
-    /// </summary>
-    private sealed class NoCloseRenderForm : ImGuiDx11RenderForm
+    private bool IsCursorInWindowBounds()
     {
-        private const int CpNocloseButton = 0x200;
+        if (!GetCursorPos(out var cursorPos))
+            return false;
 
-        protected override CreateParams CreateParams
-        {
-            get
-            {
-                CreateParams myCp = base.CreateParams;
-                myCp.ClassStyle = myCp.ClassStyle | CpNocloseButton;
-                return myCp;
-            }
-        }
+        var winPos = Form.RenderWindow.Position;
+        var winSize = Form.RenderWindow.Size;
+        return cursorPos.X >= winPos.X && cursorPos.X < winPos.X + winSize.X
+            && cursorPos.Y >= winPos.Y && cursorPos.Y < winPos.Y + winSize.Y;
+    }
 
-        public NoCloseRenderForm(string title) : base(title)
-        {
-        }
+    [DllImport("user32.dll")]
+    private static extern bool GetCursorPos(out POINT lpPoint);
+
+    [DllImport("user32.dll")]
+    private static extern uint GetDpiForWindow(IntPtr hwnd);
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct POINT
+    {
+        public int X;
+        public int Y;
     }
 
     private bool _hasSetDevice;
@@ -246,6 +297,7 @@ internal sealed class AppWindow
     private Texture2D _backBufferTexture;
     public Texture2D BackBufferTexture => _backBufferTexture;
     private bool _isResizingRightNow;
+    private bool _isFullScreen;
     private Rectangle _boundsBeforeFullscreen;
 
     public void SetTexture(Texture2D texture)

@@ -3,7 +3,6 @@
 //#define FORCE_D3D_DEBUG
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -27,7 +26,6 @@ using T3.Core.Resource;
 using T3.Core.SystemUi;
 using Device = SharpDX.Direct3D11.Device;
 using Resource = SharpDX.Direct3D11.Resource;
-using SharpDX.Windows;
 using SilkWindows;
 using T3.Core.Resource.ShaderCompiling;
 using T3.Core.UserData;
@@ -108,28 +106,12 @@ internal static partial class Program
             _vsyncInterval = Convert.ToInt16(!_resolvedOptions.NoVsync);
             Log.Debug($": {_vsyncInterval}, windowed: {_resolvedOptions.Windowed}, size: {resolution}, loop: {_resolvedOptions.Loop}, logging: {_resolvedOptions.Logging}");
 
-            var iconPath = Path.Combine(SharedResources.EditorResourcesDirectory,  SharedResources.EditorResourcesDirectory,"images", "t3.ico");
-            var gotIcon = File.Exists(iconPath);
+            _renderWindow = new SilkRenderWindow(
+                exportSettings!.ApplicationTitle,
+                resolution.X, resolution.Y,
+                resizable: false);
 
-            Icon icon;
-            if (!gotIcon)
-            {
-                Log.Warning("Failed to load icon");
-                icon = null;
-            }
-            else
-            {
-                icon = new Icon(iconPath);
-            }
-
-            _renderForm = new RenderForm(exportSettings!.ApplicationTitle)
-                              {
-                                  ClientSize = new Size(resolution.X, resolution.Y),
-                                  AllowUserResizing = false,
-                                  Icon = icon,
-                              };
-
-            var windowHandle = _renderForm.Handle;
+            var windowHandle = _renderWindow.Handle;
 
             // SwapChain description
             var desc = new SwapChainDescription
@@ -169,11 +151,11 @@ internal static partial class Program
                 cursor.SetVisible(false);
             }
 
-            // Ign ore all windows events
+            // Ignore all windows events
             var factory = _swapChain.GetParent<Factory>();
-            factory.MakeWindowAssociation(_renderForm.Handle, WindowAssociationFlags.IgnoreAll);
+            factory.MakeWindowAssociation(_renderWindow.Handle, WindowAssociationFlags.IgnoreAll);
 
-            InitializeInput(_renderForm);
+            InitializeInput(_renderWindow);
 
             // New RenderTargetView from the backbuffer
             _backBuffer = Resource.FromSwapChain<SharpDX.Direct3D11.Texture2D>(_swapChain, 0);
@@ -314,7 +296,7 @@ internal static partial class Program
             try
             {
                 // Main loop
-                RenderLoop.Run(_renderForm, RenderCallback);
+                _renderWindow.Run(RenderCallback);
             }
             catch (TimelineEndedException)
             {
@@ -389,11 +371,11 @@ internal static partial class Program
         }
     }
 
-    private static void RebuildBackBuffer(RenderForm form, Device device, ref RenderTargetView rtv, ref SharpDX.Direct3D11.Texture2D buffer, SwapChain swapChain)
+    private static void RebuildBackBuffer(SilkRenderWindow window, Device device, ref RenderTargetView rtv, ref SharpDX.Direct3D11.Texture2D buffer, SwapChain swapChain)
     {
         rtv.Dispose();
         buffer.Dispose();
-        swapChain.ResizeBuffers(3, form.ClientSize.Width, form.ClientSize.Height, Format.Unknown, SwapChainFlags.AllowModeSwitch);
+        swapChain.ResizeBuffers(3, window.ClientWidth, window.ClientHeight, Format.Unknown, SwapChainFlags.AllowModeSwitch);
         buffer = Resource.FromSwapChain<SharpDX.Direct3D11.Texture2D>(swapChain, 0);
         rtv = new RenderTargetView(device, buffer);
     }
@@ -456,7 +438,7 @@ internal static partial class Program
     private static AudioClipResourceHandle _soundtrackHandle;
     private static DeviceContext _deviceContext;
     private static Options _resolvedOptions;
-    private static RenderForm _renderForm;
+    private static SilkRenderWindow _renderWindow;
     private static Texture2D _outputTexture;
     private static ShaderResourceView _outputTextureSrv;
     private static RasterizerState _rasterizerState;
