@@ -23,9 +23,14 @@ public static partial class ResourceManager
 {
     public static Device Device { get; private set; } = null!;
 
+    public static IGraphicsDevice GraphicsDevice { get; private set; } = null!;
+
+    public static GraphicsBackend ActiveBackend => GraphicsDevice.Backend;
+
     public static void Init(Device device)
     {
         Device = device;
+        GraphicsDevice = new DX11GraphicsDevice(device);
         var samplerDesc = new SamplerStateDescription
                               {
                                   Filter = Filter.MinMagMipLinear,
