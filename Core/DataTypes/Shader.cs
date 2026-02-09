@@ -11,6 +11,8 @@ namespace T3.Core.DataTypes;
 public sealed class ComputeShader(SharpDX.Direct3D11.ComputeShader shader, byte[] compiledBytecode)
     : Shader<SharpDX.Direct3D11.ComputeShader>(shader, compiledBytecode)
 {
+    public byte[]? SpirvBytecode { get; set; }
+
     public bool TryGetThreadGroups(out Int3 threadGroups)
     {
         threadGroups = default;
@@ -32,10 +34,22 @@ public sealed class VertexShader(SharpDX.Direct3D11.VertexShader shader, byte[] 
 public sealed class GeometryShader(SharpDX.Direct3D11.GeometryShader shader, byte[] compiledBytecode)
     : Shader<SharpDX.Direct3D11.GeometryShader>(shader, compiledBytecode);
 
-public abstract class Shader<TShader> : AbstractShader where TShader : DeviceChild
+public abstract class Shader<TShader> : AbstractShader where TShader : IDisposable
 {
     private readonly TShader _shader;
-    public sealed override string Name { get => _shader.DebugName; set => _shader.DebugName = value; }
+    private string _name;
+
+    public sealed override string Name
+    {
+        get => _shader is DeviceChild dc ? dc.DebugName : _name;
+        set
+        {
+            if (_shader is DeviceChild dc)
+                dc.DebugName = value;
+            else
+                _name = value;
+        }
+    }
 
     public static implicit operator TShader?(Shader<TShader>? shader) => shader?._shader;
 
@@ -51,6 +65,7 @@ public abstract class AbstractShader : IDisposable
     internal readonly byte[] CompiledBytecode;
     private readonly IDisposable _shader;
     public abstract string Name { get; set; }
+    public byte[]? SpirvBytecodeBase { get; set; }
     private bool _disposed;
 
     internal AbstractShader(IDisposable shader, byte[] compiledBytecode)
