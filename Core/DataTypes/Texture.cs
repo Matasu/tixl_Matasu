@@ -130,33 +130,31 @@ public sealed class Texture3D(SharpDX.Direct3D11.Texture3D texture) : Texture<Sh
 }
 
 public abstract class Texture<T>(T texture) : AbstractTexture(texture)
-    where T : SharpDX.Direct3D11.Resource
+    where T : IDisposable
 {
     public static implicit operator T(Texture<T> texture) => texture.TextureObject;
-    public static implicit operator SharpDX.Direct3D11.Resource?(Texture<T>? texture) => texture?.TextureObject;
+    public static implicit operator SharpDX.Direct3D11.Resource?(Texture<T>? texture) => texture?.TextureObject as SharpDX.Direct3D11.Resource;
     protected readonly T TextureObject = texture;
-    public bool IsDisposed => TextureObject.IsDisposed;
+    public bool IsDisposed => TextureObject is SharpDX.Direct3D11.Resource resource ? resource.IsDisposed : IsDisposedManually;
 }
 
 public abstract class AbstractTexture(IDisposable disposable) : IDisposable
 {
     private IDisposable? _disposable = disposable;
     public abstract string Name { get; set; }
+    protected bool IsDisposedManually { get; private set; }
 
     public static implicit operator SharpDX.Direct3D11.Resource?(AbstractTexture texture)
         => texture._disposable as SharpDX.Direct3D11.Resource;
-    
-    // The original implementation. Not sure, if the above is valid.
-    // public static implicit operator SharpDX.Direct3D11.Resource(AbstractTexture texture) 
-    //     => (SharpDX.Direct3D11.Resource)texture._disposable;
 
     public void Dispose()
     {
         _disposable?.Dispose();
         _disposable = null;
+        IsDisposedManually = true;
         GC.SuppressFinalize(this);
     }
-    
+
     ~AbstractTexture()
     {
         Dispose();
