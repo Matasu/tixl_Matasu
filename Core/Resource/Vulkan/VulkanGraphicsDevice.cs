@@ -4,6 +4,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using Silk.NET.Vulkan;
 using Silk.NET.Vulkan.Extensions.EXT;
+using Silk.NET.Core.Native;
 using Silk.NET.Vulkan.Extensions.KHR;
 using T3.Core.Logging;
 
@@ -25,11 +26,14 @@ public sealed unsafe class VulkanGraphicsDevice : IGraphicsDevice, IDisposable
     private ExtDebugUtils? _debugUtils;
     private DebugUtilsMessengerEXT _debugMessenger;
 
+    private readonly bool _hasSurface;
+
     public VulkanGraphicsDevice(IVkSurface? surface = null)
     {
         Api = Vk.GetApi();
+        _hasSurface = surface != null;
 
-        CreateInstance();
+        CreateInstance(surface);
         if (VulkanValidation.IsEnabled)
         {
             _debugMessenger = VulkanValidation.SetupDebugMessenger(Api, Instance, out _debugUtils);
@@ -58,7 +62,7 @@ public sealed unsafe class VulkanGraphicsDevice : IGraphicsDevice, IDisposable
         Log.Debug("Vulkan device initialized successfully.");
     }
 
-    private void CreateInstance()
+    private void CreateInstance(IVkSurface? surface)
     {
         var appInfo = new ApplicationInfo
         {
@@ -66,7 +70,7 @@ public sealed unsafe class VulkanGraphicsDevice : IGraphicsDevice, IDisposable
             ApiVersion = Vk.Version12
         };
 
-        var extensions = GetRequiredExtensions();
+        var extensions = GetRequiredExtensions(surface);
         var extensionPtrs = extensions.Select(e => (nint)Marshal.StringToHGlobalAnsi(e)).ToArray();
 
         try
@@ -168,21 +172,37 @@ public sealed unsafe class VulkanGraphicsDevice : IGraphicsDevice, IDisposable
 
         var deviceFeatures = new PhysicalDeviceFeatures();
 
-        fixed (DeviceQueueCreateInfo* queueCreateInfosPtr = queueCreateInfos)
+        // Enable swapchain extension when a surface is provided
+        var deviceExtensions = _hasSurface
+            ? new[] { KhrSwapchain.ExtensionName }
+            : Array.Empty<string>();
+        var extensionPtrs = deviceExtensions.Select(e => (nint)Marshal.StringToHGlobalAnsi(e)).ToArray();
+
+        try
         {
-            var createInfo = new DeviceCreateInfo
+            fixed (DeviceQueueCreateInfo* queueCreateInfosPtr = queueCreateInfos)
+            fixed (nint* extensionsPinned = extensionPtrs)
             {
-                SType = StructureType.DeviceCreateInfo,
-                QueueCreateInfoCount = (uint)queueCreateInfos.Length,
-                PQueueCreateInfos = queueCreateInfosPtr,
-                PEnabledFeatures = &deviceFeatures,
-                EnabledExtensionCount = 0
-            };
+                var createInfo = new DeviceCreateInfo
+                {
+                    SType = StructureType.DeviceCreateInfo,
+                    QueueCreateInfoCount = (uint)queueCreateInfos.Length,
+                    PQueueCreateInfos = queueCreateInfosPtr,
+                    PEnabledFeatures = &deviceFeatures,
+                    EnabledExtensionCount = (uint)extensionPtrs.Length,
+                    PpEnabledExtensionNames = (byte**)extensionsPinned
+                };
 
-            if (Api.CreateDevice(PhysicalDevice, &createInfo, null, out var device) != Result.Success)
-                throw new InvalidOperationException("Failed to create Vulkan logical device.");
+                if (Api.CreateDevice(PhysicalDevice, &createInfo, null, out var device) != Result.Success)
+                    throw new InvalidOperationException("Failed to create Vulkan logical device.");
 
-            Device = device;
+                Device = device;
+            }
+        }
+        finally
+        {
+            foreach (var ptr in extensionPtrs)
+                Marshal.FreeHGlobal(ptr);
         }
     }
 
@@ -195,14 +215,23 @@ public sealed unsafe class VulkanGraphicsDevice : IGraphicsDevice, IDisposable
         PresentQueue = presentQueue;
     }
 
-    private static string[] GetRequiredExtensions()
+    private static string[] GetRequiredExtensions(IVkSurface? surface)
     {
+        var extensions = new System.Collections.Generic.List<string>();
+
         if (VulkanValidation.IsEnabled)
         {
-            return new[] { ExtDebugUtils.ExtensionName };
+            extensions.Add(ExtDebugUtils.ExtensionName);
         }
 
-        return Array.Empty<string>();
+        if (surface != null)
+        {
+            var surfaceExtensions = SilkMarshal.PtrToStringArray(
+                (nint)surface.GetRequiredExtensions(out var count), (int)count);
+            extensions.AddRange(surfaceExtensions);
+        }
+
+        return extensions.ToArray();
     }
 
     public void Dispose()

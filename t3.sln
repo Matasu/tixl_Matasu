@@ -65,6 +65,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImguiWindows", "ImguiWindow
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Mediapipe", "Operators\Mediapipe\Mediapipe.csproj", "{516FEE02-7D77-48DC-A0A6-E0125D3D334A}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "VulkanSmokeTest", "VulkanSmokeTest\VulkanSmokeTest.csproj", "{E8F1D7A3-5B2C-4F6E-9A8D-3C7B1E4F2D9A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -147,6 +149,10 @@ Global
 		{516FEE02-7D77-48DC-A0A6-E0125D3D334A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{516FEE02-7D77-48DC-A0A6-E0125D3D334A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{516FEE02-7D77-48DC-A0A6-E0125D3D334A}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E8F1D7A3-5B2C-4F6E-9A8D-3C7B1E4F2D9A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E8F1D7A3-5B2C-4F6E-9A8D-3C7B1E4F2D9A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E8F1D7A3-5B2C-4F6E-9A8D-3C7B1E4F2D9A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E8F1D7A3-5B2C-4F6E-9A8D-3C7B1E4F2D9A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
